@@ -6,19 +6,20 @@ library("reshape")
 library(reshape2)
 library(ggplot2)
 library(pheatmap)
+library(scater)
+library("RColorBrewer")
 
-wd <- "/Users/peterkilfeather/Desktop/pk_trap"
-setwd(wd)
+require(scatterplot3d)
 
 sample_metadata <- read.csv("sample_metadata_020619.csv", header = T)
-sample_metadata_striatum_all <- sample_metadata[sample_metadata$region != 1,]
+sample_metadata_striatum_all <- sample_metadata[sample_metadata$region != 1,] 
 sample_metadata_striatum_all$collection_day[is.na(sample_metadata_striatum_all$collection_day)] <- 10
 sample_metadata_striatum_all$collection_day <- factor(sample_metadata_striatum_all$collection_day)
 sample_metadata_striatum_all$age_months <- factor(sample_metadata_striatum_all$age_months)
 sample_metadata_striatum_all$ip <- factor(sample_metadata_striatum_all$ip)
 sample_metadata_striatum_all$region <- factor(sample_metadata_striatum_all$region)
 
-files_striatum_all = file.path(wd, "quant_pc", sample_metadata$sample_code, "abundance.h5")[sample_metadata$region != 1]
+files_striatum_all = file.path("/zfs/analysis/PK_TRAP/", "quant_pc", sample_metadata$sample_code, "abundance.h5")[sample_metadata$region != 1]
 names(files_striatum_all) <- sample_metadata$sample_name[sample_metadata$region != 1]
 
 txdb <- makeTxDbFromGFF("Mus_musculus.GRCm38.96.gtf")
@@ -27,25 +28,148 @@ tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
 
 txi_ip_vs_input <- tximport(files_striatum_all, type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
 
-dds_ip_vs_input <- DESeqDataSetFromTximport(txi_ip_vs_input, colData = sample_metadata_striatum_all, design = ~ age_months + ip)
-
+dds_ip_vs_input <- DESeqDataSetFromTximport(txi_ip_vs_input, colData = sample_metadata_striatum_all, design = ~ age_months + region + ip)
 dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
-
 dim(dds_ip_vs_input)
+
+#filter 0 counts
+keep_feature <- rowSums(counts(dds_ip_vs_input)) > 0
+dds_ip_vs_input <- dds_ip_vs_input[keep_feature, ]
+dim(dds_ip_vs_input)
+
+#variance stabilised counts: Note that blind is set to False
+vsd_ip_vs_input <- vst(dds_ip_vs_input, blind=F)
+
+
+#CUSTOMIZE
+counts <- assay(vsd_ip_vs_input)
+logcounts <- log10(counts)
+# density plot of raw read counts (log10)
+
+d <- density(logcounts)
+plot(d,xlim=c(1,8),main="",ylim=c(0,1),xlab="Raw read counts per gene (log10)", ylab="Density")
+for (s in 2:ncol(counts)){
+  logcounts <- log(counts[,s],10) 
+  d <- density(logcounts)
+  lines(d)
+}
+
+
+#sample distances
+sampleDists_ip_vs_input <- dist(t(assay(vsd_ip_vs_input)))
+sampleDistMatrix_ip_vs_input <- as.matrix(sampleDists_ip_vs_input)
+rownames(sampleDistMatrix_ip_vs_input) <- paste(vsd_ip_vs_input$sample_name)
+colnames(sampleDistMatrix_ip_vs_input) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix_ip_vs_input,
+         clustering_distance_rows=sampleDists_ip_vs_input,
+         clustering_distance_cols=sampleDists_ip_vs_input,
+         col=colors)
+
+##PCA with vsd
+#calculate the variance for each gene
+feature_variance <- rowVars(assay(vsd_ip_vs_input))
+
+## select the ntop genes by variance
+select <- order(feature_variance, decreasing=TRUE)[seq_len(min(500, length(feature_variance)))]
+
+## perform a PCA on the data in assay(x) for the selected genes
+pca_striatum <- prcomp(t(assay(vsd_ip_vs_input)[select,]))
+
+## the contribution to the total variance for each component
+percentVar_striatum <- pca_striatum$sdev^2 / sum( pca_striatum$sdev^2 )
+
+##plot the "percentVar"
+scree_plot=data.frame(percentVar_striatum)
+scree_plot[,2]<- c(1:28)
+
+colnames(scree_plot)<-c("variance","component_number")
+ggplot(scree_plot, mapping=aes(x=component_number, y=variance))+geom_bar(stat="identity")
+
+
+###PCA Kevin Blighe
+pca_striatum <- prcomp(t(assay(vsd_ip_vs_input)))
+summary(pca_striatum)
+pca_striatum_proportionvariances <- ((pca_striatum$sdev^2) / (sum(pca_striatum$sdev^2)))*100
+barplot(pca_striatum_proportionvariances, cex.names=1, xlab=paste("Principal component (PC), 1-", length(pca_striatum$sdev)), ylab="Proportion of variation (%)", main="Scree plot", ylim=c(0,100))
+
+par(cex=1.0, cex.axis=0.8, cex.main=0.8)
+pairs(pca_striatum$x[,1:5], col="blue", main="Principal components analysis bi-plot\nPCs 1-5", pch=16)
+pairs(pca_striatum$x[,6:10], col="blue", main="Principal components analysis bi-plot\nPCs 6-10", pch=16)
+
+par(mar=c(4,4,4,4), mfrow=c(1,3), cex=1.0, cex.main=0.8, cex.axis=0.8)
+
+#Plots scatter plot for PC 1 and 2
+plot(pca_striatum$x, type="n", main="Principal components analysis bi-plot", xlab=paste("PC1, ", round(pca_striatum_proportionvariances[1], 2), "%"), ylab=paste("PC2, ", round(pca_striatum_proportionvariances[2], 2), "%"))
+points(pca_striatum$x, col="black", pch=16, cex=1)
+
+#Plots scatter plot for PC 1 and 3
+plot(pca_striatum$x[,1], pca_striatum$x[,3], type="n", main="Principal components analysis bi-plot", xlab=paste("PC1, ", round(pca_striatum_proportionvariances[1], 2), "%"), ylab=paste("PC3, ", round(pca_striatum_proportionvariances[3], 2), "%"))
+points(pca_striatum$x[,1], pca_striatum$x[,3], col="black", pch=16, cex=1)
+
+#Plots scatter plot for PC 2 and 3
+plot(pca_striatum$x[,2], pca_striatum$x[,3], type="n", main="Principal components analysis bi-plot", xlab=paste("PC2, ", round(pca_striatum_proportionvariances[2], 2), "%"), ylab=paste("PC3, ", round(pca_striatum_proportionvariances[3], 2), "%"))
+points(pca_striatum$x[,2], pca_striatum$x[,3], col="black", pch=16, cex=1)
+
+par(mar=c(4,4,4,4), cex=1.0, cex.main=0.8, cex.axis=0.8)
+
+scatterplot3d(pca_striatum$x[,1:3], angle=-40, main="", color="black", pch=17, xlab=paste("PC1, ", round(pca_striatum_proportionvariances[1], 2), "%"), ylab=paste("PC2, ", round(pca_striatum_proportionvariances[2], 2), "%"), zlab=paste("PC3, ", round(pca_striatum_proportionvariances[3], 2), "%"), grid=FALSE, box=FALSE)
+source('http://www.sthda.com/sthda/RDoc/functions/addgrids3d.r')
+addgrids3d(pca_striatum$x[,1:3], grid = c("xy", "xz", "yz"))
+
+source('http://www.sthda.com/sthda/RDoc/functions/addgrids3d.r')
+addgrids3d(pca_striatum$x[,1:3], grid = c("xy", "xz", "yz"))
+
+###End of PCA Kevin Blighe
 
 hist(as.numeric(rowSums(counts(dds_ip_vs_input))),
      breaks = 100, main = "Expression sum per gene",
      xlab = "Sum expression")
 abline(v=median(as.numeric(rowSums(counts(dds_ip_vs_input)))),col="red")
 
-# ribosomal <- rowMeans(counts(dds_ip_vs_input)) > 150000
-# sum(ribosomal, na.rm = T)
-# high_count <- dds_ip_vs_input[ribosomal,]
-# dim(dds_IPvsT)
 
-keep_feature <- rowSums(counts(dds_ip_vs_input)) > 0
-dds_ip_vs_input <- dds_ip_vs_input[keep_feature, ]
+
+#scater
+sce_all <- SingleCellExperiment(assays = list(counts = counts(dds_ip_vs_input)), colData = sample_metadata_striatum_all)
+sce_all
+
+plot(quantile(rowMeans(counts(dds_ip_vs_input)), seq(0, 1, 0.05))[1:20])
+par(mar=c(8,5,2,2))
+boxplot(log10(assays(dds_ip_vs_input)[["cooks"]]), range=0, las=2)
+
+keep <- rowMeans(counts(dds_ip_vs_input)) >= 100 # must have 100 counts  per sample for consideration
+# keep <- rowSums((counts(dds_IPvsT)) >= 10 ) > 10 
+sum(keep, na.rm = T)
+# sum(keep1, na.rm = T)
+# sum(keep2, na.rm = T)
+dds_ip_vs_input <- dds_ip_vs_input[keep,]
 dim(dds_ip_vs_input)
+
+dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
+
+plotDispEsts(dds_ip_vs_input)
+abline(h=0.1,col="green")
+
+res_ip_vs_input <- results(dds_ip_vs_input, alpha = 0.001)
+summary(res_ip_vs_input)
+
+res_ip_vs_input$ensembl_gene_id = rownames(res_ip_vs_input)
+res_ip_vs_input_enriched <- subset(as.data.frame(res_ip_vs_input), padj < 0.001)
+res_ip_vs_input_enriched <- res_ip_vs_input[order(-res_ip_vs_input$baseMean),]
+res_ip_vs_input_enriched <- merge(as.data.frame(res_ip_vs_input_enriched), anno, by=c("ensembl_gene_id"))
+write.csv(res_ip_vs_input_enriched, file = "striatum_enriched.csv")
+
+
+mart <- useMart(biomart = "ensembl", dataset = "mmusculus_gene_ensembl")
+anno <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description"), filters = "ensembl_gene_id", values = res_ip_vs_input$ensembl, mart = mart)
+
+fasn_coverage <- read.table("fasn.coverage", header=FALSE, sep="\t", na.strings="NA", dec=".", strip.white=TRUE)
+
+fasn_coverage <- rename(fasn_coverage,c(V1="Chr", V2="locus", V3="depth")) # renames the header
+plot(fasn_coverage$locus, fasn_coverage$depth)
+library(lattice, pos=10) 
+xyplot(depth ~ locus, type="p", pch=16, auto.key=list(border=TRUE), par.settings=simpleTheme(pch=16), scales=list(x=list(relation='same'), y=list(relation='same')), data=fasn_coverage, main="sequence coverage across Fasn locus")
+
 
 #CUSTOMIZE
 sample_metadata <- sample_metadata_striatum_all[1:20,]
@@ -251,42 +375,5 @@ summary(fit) # display the best model
 
 
 
-
-quantile(rowMeans(counts(dds_ip_vs_input)), seq(0, 1, 0.05))
-par(mar=c(8,5,2,2))
-boxplot(log10(assays(dds_ip_vs_input)[["cooks"]]), range=0, las=2)
-
-keep <- rowMeans(counts(dds_ip_vs_input)) >= 100 # must have 100 counts  per sample for consideration
-# keep <- rowSums((counts(dds_IPvsT)) >= 10 ) > 10 
-sum(keep, na.rm = T)
-# sum(keep1, na.rm = T)
-# sum(keep2, na.rm = T)
-dds_ip_vs_input <- dds_ip_vs_input[keep,]
-dim(dds_ip_vs_input)
-
-dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
-
-plotDispEsts(dds_ip_vs_input)
-abline(h=0.1,col="green")
-
-res_ip_vs_input <- results(dds_ip_vs_input, alpha = 0.001)
-summary(res_ip_vs_input)
-
-res_ip_vs_input$ensembl_gene_id = rownames(res_ip_vs_input)
-res_ip_vs_input_enriched <- subset(as.data.frame(res_ip_vs_input), padj < 0.001)
-res_ip_vs_input_enriched <- res_ip_vs_input[order(-res_ip_vs_input$baseMean),]
-res_ip_vs_input_enriched <- merge(as.data.frame(res_ip_vs_input_enriched), anno, by=c("ensembl_gene_id"))
-write.csv(res_ip_vs_input_enriched, file = "striatum_enriched.csv")
-
-
-mart <- useMart(biomart = "ensembl", dataset = "mmusculus_gene_ensembl")
-anno <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description"), filters = "ensembl_gene_id", values = res_ip_vs_input$ensembl, mart = mart)
-
-fasn_coverage <- read.table("fasn.coverage", header=FALSE, sep="\t", na.strings="NA", dec=".", strip.white=TRUE)
-
-fasn_coverage <- rename(fasn_coverage,c(V1="Chr", V2="locus", V3="depth")) # renames the header
-plot(fasn_coverage$locus, fasn_coverage$depth)
-library(lattice, pos=10) 
-xyplot(depth ~ locus, type="p", pch=16, auto.key=list(border=TRUE), par.settings=simpleTheme(pch=16), scales=list(x=list(relation='same'), y=list(relation='same')), data=fasn_coverage, main="sequence coverage across Fasn locus")
 
 
