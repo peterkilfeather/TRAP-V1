@@ -9,8 +9,12 @@ library(pheatmap)
 library(scater)
 library("RColorBrewer")
 library(dplyr)
+library("org.Mm.eg.db")
 
 require(scatterplot3d)
+
+mart <- useMart(biomart = "ensembl", dataset = "mmusculus_gene_ensembl")
+anno <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description"), filters = "ensembl_gene_id", values = rownames(counts), mart = mart)
 
 sample_metadata <- read.csv("sample_metadata_020619.csv", header = T)
 sample_metadata_striatum_all <- sample_metadata[sample_metadata$region != 1,] 
@@ -175,12 +179,31 @@ dim(dds_ip)
 
 dds_ip <- DESeq(dds_ip, minReplicatesForReplace = Inf)
 
-res <- results(dds_ip)
-summary(res)
+res_ip_region <- results(dds_ip)
+summary(res_ip_region)
 
-df <- data.frame(Sample=factor(c(1:10)), Group=c(rep("A",5), rep("B",5)))
-mm <- model.matrix(~Sample+Group, df)
-mm
+# df <- data.frame(Sample=factor(c(1:10)), Group=c(rep("A",5), rep("B",5)))
+# mm <- model.matrix(~Sample+Group, df)
+# mm
+
+res_ip_region$symbol <- mapIds(x=org.Mm.eg.db, keys = rownames(res_ip_region), keytype="ENSEMBL", column="SYMBOL")
+res_ip_region$ensembl <- rownames(res_ip_region)
+res_ip_region <- as.data.frame(res_ip_region) %>% filter(symbol != 'NA') %>% arrange(padj, -log2FoldChange)
+
+res_ip_ventral_enriched <- subset(as.data.frame(res_ip_region), padj < 0.001 & log2FoldChange > 0.25)
+res_ip_dorsal_enriched <- subset(as.data.frame(res_ip_region), padj < 0.001 & log2FoldChange < 0.25)
+  
+head(res_ip_dorsal_enriched, 20)
+head(res_ip_ventral_enriched, 20)
+
+res_ip_dorsal_enriched <- merge(as.data.frame(res_ip_dorsal_enriched), anno, by=c("ensembl_gene_id"))
+
+res_ip_dorsal_enriched <- left_join(res_ip_dorsal_enriched, anno, by = c("ensembl" = "ensembl_gene_id"))
+res_ip_ventral_enriched <- left_join(res_ip_ventral_enriched, anno, by = c("ensembl" = "ensembl_gene_id"))
+
+write.csv(res_ip_dorsal_enriched, file = "dorsal_striatum_enriched.csv")
+write.csv(res_ip_ventral_enriched, file = "ventral_striatum_enriched.csv")
+
 
 ###Generic PCA
 
@@ -259,8 +282,6 @@ dim(dds_ip_vs_input)
 
 
 
-mart <- useMart(biomart = "ensembl", dataset = "mmusculus_gene_ensembl")
-anno <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description"), filters = "ensembl_gene_id", values = res_ip_vs_input$ensembl, mart = mart)
 
 fasn_coverage <- read.table("fasn.coverage", header=FALSE, sep="\t", na.strings="NA", dec=".", strip.white=TRUE)
 
