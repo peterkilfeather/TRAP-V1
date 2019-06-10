@@ -32,8 +32,8 @@ dds_ip_vs_input <- DESeqDataSetFromTximport(txi_ip_vs_input, colData = sample_me
 dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
 dim(dds_ip_vs_input)
 
-#filter 0 counts
-keep_feature <- rowSums(counts(dds_ip_vs_input)) > 0
+#filter for min 10 counts in min 2 samples
+keep_feature <- rowSums(counts(dds_ip_vs_input) >= 10) >=2
 dds_ip_vs_input <- dds_ip_vs_input[keep_feature, ]
 dim(dds_ip_vs_input)
 
@@ -143,11 +143,16 @@ ggplot(s2, aes(ip,s, fill=as.factor(region)))+ geom_boxplot(position="dodge") + 
 txi_ip <- tximport(files_striatum_all[1:20], type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
 sample_metadata <- sample_metadata_striatum_all[1:20,]
 
-dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ region + age_months)
+dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ collection_day + age_months + region)
+#filter min 10 counts in min 2 samples
+keep_feature <- rowSums(counts(dds_ip) >= 10) >=2
+dds_ip <- dds_ip[keep_feature, ]
+dim(dds_ip)
+
 dds_ip <- DESeq(dds_ip, minReplicatesForReplace = Inf)
 
-
-
+res <- results(dds_ip)
+summary(res)
 
 
 ###Generic PCA
