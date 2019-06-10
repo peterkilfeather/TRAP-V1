@@ -29,8 +29,9 @@ txi_ip_vs_input <- tximport(files_striatum_all, type = "kallisto", tx2gene = tx2
 
 dds_ip_vs_input <- DESeqDataSetFromTximport(txi_ip_vs_input, colData = sample_metadata_striatum_all, design = ~ age_months + ip)
 
-dim(dds_ip_vs_input)
+dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
 
+dim(dds_ip_vs_input)
 
 hist(as.numeric(rowSums(counts(dds_ip_vs_input))),
      breaks = 100, main = "Expression sum per gene",
@@ -46,26 +47,41 @@ keep_feature <- rowSums(counts(dds_ip_vs_input)) > 0
 dds_ip_vs_input <- dds_ip_vs_input[keep_feature, ]
 dim(dds_ip_vs_input)
 
+#CUSTOMIZE
+sample_metadata <- sample_metadata_striatum_all[1:20,]
+
+#just IP samples
+txi_ip <- tximport(files_striatum_all[1:20], type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
+
+dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ region + age_months)
+dds_ip <- DESeq(dds_ip, minReplicatesForReplace = Inf)
+
+#CUSTOMIZE
+counts_ip <- counts(dds_ip_vs_input[,1:20], normalized = T)
+
+#CUSTOMIZE
+counts <- counts_ip#counts_ip_vs_input
+
 # density plot of raw read counts (log10)
-counts_ip_vs_input <- counts(dds_ip_vs_input)
-logcounts <- log(counts_ip_vs_input[,1]+1,10) 
+
+logcounts <- log(counts[,1]+1,10) 
 d <- density(logcounts)
 plot(d,xlim=c(1,8),main="",ylim=c(0,.45),xlab="Raw read counts per gene (log10)", ylab="Density")
-for (s in 2:ncol(counts_ip_vs_input)){
-  logcounts <- log(counts_ip_vs_input[,s],10) 
+for (s in 2:ncol(counts)){
+  logcounts <- log(counts[,s],10) 
   d <- density(logcounts)
   lines(d)
 }
 
-counts_ip_vs_input_log = log(counts_ip_vs_input+1)
-hist(as.numeric(rowSums(counts_ip_vs_input_log)),
+counts_log = log(counts+1)
+hist(as.numeric(rowSums(counts_log)),
      breaks = 100, main = "log Expression sum per gene",
      xlab = "Sum expression")
-abline(v=median(as.numeric(rowSums(counts_ip_vs_input_log))),col="red")
+abline(v=median(as.numeric(rowSums(counts_log))),col="red")
 
-select = order(rowMeans(counts_ip_vs_input), decreasing=TRUE)[1:100]
-highexprgenes_counts <- counts_ip_vs_input[select,]
-highexprgenes_logcounts <- counts_ip_vs_input_log[select,]
+select = order(rowMeans(counts), decreasing=TRUE)[1:100]
+highexprgenes_counts <- counts[select,]
+highexprgenes_logcounts <- counts_log[select,]
 
 hist(as.numeric(rowSums(highexprgenes_logcounts)),
      breaks = 100, main = "log Expression sum per gene",
@@ -77,7 +93,7 @@ par(mfrow=c(2,2)) ## if you want to have multiple plots on the same window.
 # heatmap with sample name on X-axis
 heatmap(as.matrix(highexprgenes_logcounts), col=topo.colors(50), margin=c(10,6))
 # heatmap with condition group as labels
-colnames(highexprgenes_logcounts)<- sample_metadata_striatum_all$sample_name
+colnames(highexprgenes_logcounts)<- sample_metadata$sample_name
 # plot
 heatmap(as.matrix(highexprgenes_logcounts), col = topo.colors(50), margin=c(10,6))
 
@@ -196,11 +212,44 @@ d_clust <- Mclust(as.matrix(data_for_PCA_scaled), G=1:9,
 d_clust$BIC
 plot(d_clust)
 
-library(NbClust)
-nb <- NbClust(data_for_PCA_scaled, diss=NULL, distance = "euclidean", 
-              min.nc=2, max.nc=5, method = "kmeans", 
-              index = "all", alphaBeale = 0.1)
-hist(nb$Best.nc[1,], breaks = max(na.omit(nb$Best.nc[1,])))
+# Library does not load, currently!
+# library(NbClust)
+# nb <- NbClust(data_for_PCA_scaled, diss=NULL, distance = "euclidean", 
+#               min.nc=2, max.nc=5, method = "kmeans", 
+#               index = "all", alphaBeale = 0.1)
+# hist(nb$Best.nc[1,], breaks = max(na.omit(nb$Best.nc[1,])))
+
+#hierarchical clustering
+
+d_pca <- dist(data_for_PCA) # euclidean by default
+hc_pca <- hclust(d_pca, method = "complete") ## hierarchical cluster analysis
+plot(hc_pca)
+groups <- cutree(hc_pca,k=5) # cut tree into 5 clusters
+# draw dendogram with red borders around the 5 clusters 
+rect.hclust(hc_pca, k=5, border="red")
+
+library(pheatmap)  
+pheatmap(data_for_PCA[,1:10])
+
+pheatmap(data_for_PCA)
+
+# Ward Hierarchical Clustering with Bootstrapped p values
+library(pvclust)
+fit <- pvclust(t(data_for_PCA), method.hclust="ward",
+               method.dist="euclidean")
+plot(fit) # dendogram with p values
+# add rectangles around groups highly supported by the data
+pvrect(fit, alpha=.95)
+
+# Model Based Clustering
+library(mclust)
+fit <- Mclust(t(data_for_PCA))
+plot(fit) # plot results 
+summary(fit) # display the best model
+
+
+
+
 
 
 quantile(rowMeans(counts(dds_ip_vs_input)), seq(0, 1, 0.05))
