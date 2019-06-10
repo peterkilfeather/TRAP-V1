@@ -40,20 +40,36 @@ dim(dds_ip_vs_input)
 #variance stabilised counts: Note that blind is set to False
 vsd_ip_vs_input <- vst(dds_ip_vs_input, blind=F)
 
-
-#CUSTOMIZE
+#Choose
+counts <- counts(dds_ip_vs_input, normalized = T)
 counts <- assay(vsd_ip_vs_input)
-logcounts <- log10(counts)
-# density plot of raw read counts (log10)
 
+# density plot of raw read counts (log10)
+logcounts <- log(counts[,1]+1,10) 
 d <- density(logcounts)
-plot(d,xlim=c(1,8),main="",ylim=c(0,1),xlab="Raw read counts per gene (log10)", ylab="Density")
+plot(d,xlim=c(0,8),main="",ylim=c(0,.45),xlab="Raw read counts per gene (log10)", ylab="Density")
+for (s in 2:ncol(counts)){
+  logcounts <- log(counts[,s]+1,10) 
+  d <- density(logcounts)
+  lines(d)
+}
+
+# density plot of raw read counts (vsd)
+logcounts <- log10(counts)
+d <- density(logcounts)
+plot(d,xlim=c(0,2),main="",ylim=c(0,30),xlab="Raw read counts per gene (log10)", ylab="Density")
 for (s in 2:ncol(counts)){
   logcounts <- log(counts[,s],10) 
   d <- density(logcounts)
   lines(d)
 }
 
+#expression sum per gene
+logcounts = log10(counts+1)
+hist(as.numeric(rowSums(logcounts)),
+     breaks = 100, main = "log Expression sum per gene",
+     xlab = "Sum expression")
+abline(v=median(as.numeric(rowSums(counts_log))),col="red")
 
 #sample distances
 sampleDists_ip_vs_input <- dist(t(assay(vsd_ip_vs_input)))
@@ -66,12 +82,75 @@ pheatmap(sampleDistMatrix_ip_vs_input,
          clustering_distance_cols=sampleDists_ip_vs_input,
          col=colors)
 
-##PCA with vsd
+##PCA with vsd for ip vs input
 #calculate the variance for each gene
 feature_variance <- rowVars(assay(vsd_ip_vs_input))
 
 ## select the ntop genes by variance
 select <- order(feature_variance, decreasing=TRUE)[seq_len(min(500, length(feature_variance)))]
+#select = order(rowMeans(counts), decreasing=TRUE)[1:100]
+# highexprgenes_counts <- counts[select,]
+# highexprgenes_logcounts <- counts_log[select,]
+
+highvargenes_counts <- counts[select,]
+highvargenes_logcounts <- logcounts[select,]
+
+hist(as.numeric(rowSums(highvargenes_logcounts)),
+     breaks = 100, main = "log Expression sum per gene",
+     xlab = "Sum expression")
+abline(v=median(as.numeric(rowSums(highvargenes_logcounts))),col="red")
+
+par(mfrow=c(2,2)) ## if you want to have multiple plots on the same window.
+
+# heatmap with sample name on X-axis
+heatmap(as.matrix(highvargenes_logcounts), col=topo.colors(50), margin=c(10,6))
+# heatmap with condition group as labels
+colnames(highvargenes_logcounts)<- sample_metadata_striatum_all$sample_name
+# plot
+heatmap(as.matrix(highvargenes_logcounts), col = topo.colors(50), margin=c(10,6))
+
+###OBDS PCA
+data_for_PCA <- t(highvargenes_logcounts)
+dim(data_for_PCA)
+
+data_for_PCA_scaled = scale(data_for_PCA,center = TRUE, scale = FALSE)
+
+# using prcomp
+bpc = prcomp(data_for_PCA, center=TRUE, scale=FALSE) ## stats package 
+beigenvalues = bpc$sdev^2 # eigenvalues
+beigenvectors = bpc$rotation # eigenvectors
+par(mfrow=c(2,1))
+plot(beigenvalues/sum(beigenvalues) * 100,xlab="PC",ylab="% Variance explained") 
+plot(cumsum(beigenvalues)/sum(beigenvalues) * 100, xlab="PC",ylab="Cumulative % Variance explained")
+
+plot(bpc$x[,1]/(bpc$sdev[1]*sqrt(12)),bpc$x[,2]/(bpc$sdev[2]*sqrt(12)), xlab="PC1",ylab="PC2", main="PC prcomp")
+library(ggfortify)
+autoplot(bpc, main = "PC prcomp, autoplot")
+
+library(pcaExplorer)
+# extract genes with the highest/lowest loadings per PC
+hi_loadings(bpc, whichpc = 1, topN = 10, exprTable = NULL,
+            annotation = NULL, title = "Top/bottom loadings - ")
+
+hi_loadings(bpc, whichpc = 2, topN = 10, exprTable = NULL,
+            annotation = NULL, title = "Top/bottom loadings - ")
+
+s = data_for_PCA[,which(colnames(data_for_PCA)=="ENSMUSG00000067879")]
+s2 = cbind(s,sample_metadata_striatum_all)
+ggplot(s2, aes(ip,s, fill=as.factor(region)))+ geom_boxplot(position="dodge") + geom_point(alpha=0.6, aes(group=region), data=s2, position = position_dodge(width=0.75))+ylab("log Expression")+xlab("")+ggtitle("Vexin")
+
+#just IP samples
+txi_ip <- tximport(files_striatum_all[1:20], type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
+sample_metadata <- sample_metadata_striatum_all[1:20,]
+
+dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ region + age_months)
+dds_ip <- DESeq(dds_ip, minReplicatesForReplace = Inf)
+
+
+
+
+
+###Generic PCA
 
 ## perform a PCA on the data in assay(x) for the selected genes
 pca_striatum <- prcomp(t(assay(vsd_ip_vs_input)[select,]))
@@ -85,6 +164,7 @@ scree_plot[,2]<- c(1:28)
 
 colnames(scree_plot)<-c("variance","component_number")
 ggplot(scree_plot, mapping=aes(x=component_number, y=variance))+geom_bar(stat="identity")
+
 
 
 ###PCA Kevin Blighe
@@ -171,85 +251,10 @@ library(lattice, pos=10)
 xyplot(depth ~ locus, type="p", pch=16, auto.key=list(border=TRUE), par.settings=simpleTheme(pch=16), scales=list(x=list(relation='same'), y=list(relation='same')), data=fasn_coverage, main="sequence coverage across Fasn locus")
 
 
-#CUSTOMIZE
-sample_metadata <- sample_metadata_striatum_all[1:20,]
 
-#just IP samples
-txi_ip <- tximport(files_striatum_all[1:20], type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
 
-dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ region + age_months)
-dds_ip <- DESeq(dds_ip, minReplicatesForReplace = Inf)
 
-#CUSTOMIZE
-counts_ip <- counts(dds_ip_vs_input[,1:20], normalized = T)
 
-#CUSTOMIZE
-counts <- counts_ip#counts_ip_vs_input
-
-# density plot of raw read counts (log10)
-
-logcounts <- log(counts[,1]+1,10) 
-d <- density(logcounts)
-plot(d,xlim=c(1,8),main="",ylim=c(0,.45),xlab="Raw read counts per gene (log10)", ylab="Density")
-for (s in 2:ncol(counts)){
-  logcounts <- log(counts[,s],10) 
-  d <- density(logcounts)
-  lines(d)
-}
-
-counts_log = log(counts+1)
-hist(as.numeric(rowSums(counts_log)),
-     breaks = 100, main = "log Expression sum per gene",
-     xlab = "Sum expression")
-abline(v=median(as.numeric(rowSums(counts_log))),col="red")
-
-select = order(rowMeans(counts), decreasing=TRUE)[1:100]
-highexprgenes_counts <- counts[select,]
-highexprgenes_logcounts <- counts_log[select,]
-
-hist(as.numeric(rowSums(highexprgenes_logcounts)),
-     breaks = 100, main = "log Expression sum per gene",
-     xlab = "Sum expression")
-abline(v=median(as.numeric(rowSums(highexprgenes_logcounts))),col="red")
-
-par(mfrow=c(2,2)) ## if you want to have multiple plots on the same window.
-
-# heatmap with sample name on X-axis
-heatmap(as.matrix(highexprgenes_logcounts), col=topo.colors(50), margin=c(10,6))
-# heatmap with condition group as labels
-colnames(highexprgenes_logcounts)<- sample_metadata$sample_name
-# plot
-heatmap(as.matrix(highexprgenes_logcounts), col = topo.colors(50), margin=c(10,6))
-
-data_for_PCA <- t(highexprgenes_logcounts)
-dim(data_for_PCA)
-
-############### Back to slides #################
-data_for_PCA_scaled = scale(data_for_PCA,center = TRUE, scale = FALSE)
-
-# using prcomp
-bpc = prcomp(data_for_PCA, center=TRUE, scale=FALSE) ## stats package 
-beigenvalues = bpc$sdev^2 # eigenvalues
-beigenvectors = bpc$rotation # eigenvectors
-par(mfrow=c(2,1))
-plot(beigenvalues/sum(beigenvalues) * 100,xlab="PC",ylab="% Variance explained") 
-plot(cumsum(beigenvalues)/sum(beigenvalues) * 100, xlab="PC",ylab="Cumulative % Variance explained")
-
-plot(bpc$x[,1]/(bpc$sdev[1]*sqrt(12)),bpc$x[,2]/(bpc$sdev[2]*sqrt(12)), xlab="PC1",ylab="PC2", main="PC prcomp")
-library(ggfortify)
-autoplot(bpc, main = "PC prcomp, autoplot")
-
-library(pcaExplorer)
-# extract genes with the highest/lowest loadings per PC
-hi_loadings(bpc, whichpc = 1, topN = 10, exprTable = NULL,
-            annotation = NULL, title = "Top/bottom loadings - ")
-
-hi_loadings(bpc, whichpc = 2, topN = 10, exprTable = NULL,
-            annotation = NULL, title = "Top/bottom loadings - ")
-
-s = data_for_PCA[,which(colnames(data_for_PCA)=="ENSMUSG00000029580")]
-s2 = cbind(s,sample_metadata_striatum_all)
-ggplot(s2, aes(ip,s, fill=as.factor(region)))+ geom_boxplot(position="dodge") +geom_point(alpha=0.6, aes(group=age_months), data=s2, position = position_dodge(width=0.75))+ylab("log Expression")+xlab("")+ggtitle("Gene 213742")
 
 # doing the above with custom code
 whichpc = 1
