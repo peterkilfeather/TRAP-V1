@@ -8,6 +8,7 @@ library(ggplot2)
 library(pheatmap)
 library(scater)
 library("RColorBrewer")
+library(dplyr)
 
 require(scatterplot3d)
 
@@ -139,11 +140,34 @@ s = data_for_PCA[,which(colnames(data_for_PCA)=="ENSMUSG00000067879")]
 s2 = cbind(s,sample_metadata_striatum_all)
 ggplot(s2, aes(ip,s, fill=as.factor(region)))+ geom_boxplot(position="dodge") + geom_point(alpha=0.6, aes(group=region), data=s2, position = position_dodge(width=0.75))+ylab("log Expression")+xlab("")+ggtitle("Vexin")
 
+###Return to finding IP enriched genes
+
+plotDispEsts(dds_ip_vs_input)
+abline(h=0.1,col="green")
+
+res_ip_vs_input <- results(dds_ip_vs_input, alpha = 0.001)
+summary(res_ip_vs_input)
+
+res_ip_vs_input$ensembl_gene_id = rownames(res_ip_vs_input)
+res_ip_vs_input_enriched <- subset(as.data.frame(res_ip_vs_input), padj < 0.001 & log2FoldChange > 0.25)
+res_ip_vs_input_enriched <- res_ip_vs_input_enriched[order(res_ip_vs_input_enriched$padj),]
+res_ip_vs_input_enriched <- merge(as.data.frame(res_ip_vs_input_enriched), anno, by=c("ensembl_gene_id"))
+write.csv(res_ip_vs_input_enriched, file = "striatum_enriched.csv")
+
+plotCounts(dds_ip_vs_input, gene="ENSMUSG00000070002", intgroup="ip")
+
+striatal_genes <- rownames(res_ip_vs_input_enriched)
+
 #just IP samples
 txi_ip <- tximport(files_striatum_all[1:20], type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
 sample_metadata <- sample_metadata_striatum_all[1:20,]
 
 dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ collection_day + age_months + region)
+#subset for striatal enriched genes
+striatal_keep <- rownames(dds_ip) %in% striatal_genes
+dds_ip <- dds_ip[striatal_keep, ]
+dim(dds_ip)
+
 #filter min 10 counts in min 2 samples
 keep_feature <- rowSums(counts(dds_ip) >= 10) >=2
 dds_ip <- dds_ip[keep_feature, ]
@@ -154,6 +178,9 @@ dds_ip <- DESeq(dds_ip, minReplicatesForReplace = Inf)
 res <- results(dds_ip)
 summary(res)
 
+df <- data.frame(Sample=factor(c(1:10)), Group=c(rep("A",5), rep("B",5)))
+mm <- model.matrix(~Sample+Group, df)
+mm
 
 ###Generic PCA
 
@@ -230,19 +257,6 @@ sum(keep, na.rm = T)
 dds_ip_vs_input <- dds_ip_vs_input[keep,]
 dim(dds_ip_vs_input)
 
-dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
-
-plotDispEsts(dds_ip_vs_input)
-abline(h=0.1,col="green")
-
-res_ip_vs_input <- results(dds_ip_vs_input, alpha = 0.001)
-summary(res_ip_vs_input)
-
-res_ip_vs_input$ensembl_gene_id = rownames(res_ip_vs_input)
-res_ip_vs_input_enriched <- subset(as.data.frame(res_ip_vs_input), padj < 0.001)
-res_ip_vs_input_enriched <- res_ip_vs_input[order(-res_ip_vs_input$baseMean),]
-res_ip_vs_input_enriched <- merge(as.data.frame(res_ip_vs_input_enriched), anno, by=c("ensembl_gene_id"))
-write.csv(res_ip_vs_input_enriched, file = "striatum_enriched.csv")
 
 
 mart <- useMart(biomart = "ensembl", dataset = "mmusculus_gene_ensembl")
