@@ -158,7 +158,7 @@ res_ip_vs_input_enriched <- res_ip_vs_input_enriched[order(res_ip_vs_input_enric
 res_ip_vs_input_enriched <- merge(as.data.frame(res_ip_vs_input_enriched), anno, by=c("ensembl_gene_id"))
 write.csv(res_ip_vs_input_enriched, file = "striatum_enriched.csv")
 
-plotCounts(dds_ip_vs_input, gene="ENSMUSG00000070002", intgroup="ip")
+plotCounts(dds_ip_vs_input, gene="ENSMUSG00000019943", intgroup="region")
 
 striatal_genes <- rownames(res_ip_vs_input_enriched)
 
