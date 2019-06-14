@@ -9,6 +9,8 @@ library(pheatmap)
 library(scater)
 library("RColorBrewer")
 library(dplyr)
+library(tidyr)
+library(tibble)
 library("org.Mm.eg.db")
 
 require(scatterplot3d)
@@ -32,6 +34,7 @@ k <- keys(txdb, keytype = "TXNAME")
 tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
 
 txi_ip_vs_input <- tximport(files_striatum_all, type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
+head(txi_ip_vs_input$countsFromAbundance)
 
 dds_ip_vs_input <- DESeqDataSetFromTximport(txi_ip_vs_input, colData = sample_metadata_striatum_all, design = ~ age_months + region + ip)
 dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
@@ -39,6 +42,8 @@ dim(dds_ip_vs_input)
 
 #filter for min 10 counts in min 2 samples
 keep_feature <- rowSums(counts(dds_ip_vs_input) >= 10) >=2
+keep_feature <- rowMeans(counts(dds_ip_vs_input)) >= 100
+sum(keep_feature)
 dds_ip_vs_input <- dds_ip_vs_input[keep_feature, ]
 dim(dds_ip_vs_input)
 
@@ -48,11 +53,39 @@ vsd_ip_vs_input <- vst(dds_ip_vs_input, blind=F)
 #Choose
 counts <- counts(dds_ip_vs_input, normalized = T)
 counts <- assay(vsd_ip_vs_input)
+head(counts[,1:5])
+write.csv(counts, file = "counts.csv")
+
+#plot mean variance relationship
+counts <- log10(counts + 1)
+counts.t <- t(counts)
+counts.t <- as.data.frame(counts.t)
+counts.t <- as_tibble(rownames_to_column(counts.t, var = "samplename"))
+
+counts.t.tidy <- counts.t %>% gather(colnames(counts.t)[2:11318],
+                                   key =  "genename",
+                                   value = "normalized_counts")
+
+#fix 3/18 labelling to make 1 digit for easy separation
+counts.t.tidy <- counts.t.tidy %>%
+  separate(samplename, c("ip", "region", "sampleinfo", "batch"), sep = c(2,4,6))
+
+ggplot(counts.t.tidy, aes(normalized_counts, fill = ip)) + 
+  geom_density(alpha = 0.9, position = 'identity') + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) + 
+#  facet_grid(vars(ip)) + 
+  scale_fill_brewer(palette="Set1")
+
+counts.t.tidy.ipgrouped <- summarise(group_by(counts.t.tidy, genename, ip, region), mean=mean(normalized_counts), var=var(normalized_counts))
+head(counts.t.tidy.ipgrouped)
+
+ggplot(counts.t.tidy.ipgrouped, aes(x=mean, y=var)) + geom_rug(sides ="bl") + geom_point() + facet_grid(rows = vars(ip), cols = vars(region)) + geom_smooth(method="auto", se=TRUE, fullrange=FALSE, level=0.95)
 
 # density plot of raw read counts (log10)
 logcounts <- log(counts[,1]+1,10) 
 d <- density(logcounts)
 plot(d,xlim=c(0,8),main="",ylim=c(0,.45),xlab="Raw read counts per gene (log10)", ylab="Density")
+
 for (s in 2:ncol(counts)){
   logcounts <- log(counts[,s]+1,10) 
   d <- density(logcounts)
