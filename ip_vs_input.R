@@ -12,57 +12,104 @@ library(dplyr)
 library(tidyr)
 library(tibble)
 library("org.Mm.eg.db")
+library(RUVSeq)
 
 require(scatterplot3d)
 
 mart <- useMart(biomart = "ensembl", dataset = "mmusculus_gene_ensembl")
 anno <- getBM(attributes = c("ensembl_gene_id", "external_gene_name", "description"), filters = "ensembl_gene_id", values = rownames(counts), mart = mart)
 
-sample_metadata <- read.csv("sample_metadata_020619.csv", header = T)
-sample_metadata_striatum_all <- sample_metadata[sample_metadata$region != 1,] 
-sample_metadata_striatum_all$collection_day[is.na(sample_metadata_striatum_all$collection_day)] <- 10
-sample_metadata_striatum_all$collection_day <- factor(sample_metadata_striatum_all$collection_day)
-sample_metadata_striatum_all$age_months <- factor(sample_metadata_striatum_all$age_months)
-sample_metadata_striatum_all$ip <- factor(sample_metadata_striatum_all$ip)
-sample_metadata_striatum_all$region <- factor(sample_metadata_striatum_all$region)
+sample_metadata <- read.csv("sample_metadata_180619.csv", header = T)
+sample_metadata_striatum_all <- sample_metadata[sample_metadata$region != 'mb',] 
+# sample_metadata_striatum_all$collection_day[is.na(sample_metadata_striatum_all$collection_day)] <- 10
+# sample_metadata_striatum_all$collection_day <- factor(sample_metadata_striatum_all$collection_day)
+# sample_metadata_striatum_all$age_months <- factor(sample_metadata_striatum_all$age_months)
+# sample_metadata_striatum_all$ip <- factor(sample_metadata_striatum_all$ip)
+# sample_metadata_striatum_all$region <- factor(sample_metadata_striatum_all$region)
 
-files_striatum_all = file.path("/zfs/analysis/PK_TRAP/", "quant_pc", sample_metadata$sample_code, "abundance.h5")[sample_metadata$region != 1]
-names(files_striatum_all) <- sample_metadata$sample_name[sample_metadata$region != 1]
+files_striatum_all = file.path("/zfs/analysis/PK_TRAP/", "quant_pc", sample_metadata$sample_code, "abundance.h5")[sample_metadata$region != 'mb']
+names(files_striatum_all) <- sample_metadata$sample_name[sample_metadata$region != 'mb']
 
 txdb <- makeTxDbFromGFF("Mus_musculus.GRCm38.96.gtf")
 k <- keys(txdb, keytype = "TXNAME")
 tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
+ERCC92 <- read.csv("/zfs/users/peter/ERCC92_names.txt", header = F)
+ERCC92$V2 <- ERCC92$V1
+colnames(ERCC92) <- c("TXNAME", "GENEID")
+tx2gene_ERCC <- bind_rows(tx2gene, ERCC92)
 
-txi_ip_vs_input <- tximport(files_striatum_all, type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
-head(txi_ip_vs_input$countsFromAbundance)
+txi_ip_vs_input <- tximport(files_striatum_all, type = "kallisto", tx2gene = tx2gene_ERCC, ignoreTxVersion = T)
 
-dds_ip_vs_input <- DESeqDataSetFromTximport(txi_ip_vs_input, colData = sample_metadata_striatum_all, design = ~ age_months + region + ip)
+dds_ip_vs_input <- DESeqDataSetFromTximport(txi_ip_vs_input, colData = sample_metadata_striatum_all, design = ~region + age + ip)
 dds_ip_vs_input <- DESeq(dds_ip_vs_input, minReplicatesForReplace = Inf)
+nf <- normalizationFactors(dds_ip_vs_input)
 dim(dds_ip_vs_input)
+
+genelist <- rownames(counts(dds_ip_vs_input))
+genelist_length <- length(genelist)
+
+#RUVSeq
+counts_unnormalised <- counts(dds_ip_vs_input, normalized = F)
+filter <- apply(counts_unnormalised, 1, function(x) length(x[x>5])>=2)
+filtered <- counts_unnormalised[filter,]
+genes <- rownames(filtered)[grep("^ENS", rownames(filtered))]
+spikes <- rownames(filtered)[grep("^ERCC", rownames(filtered))]
+
+set1 <- RUVg(filtered, spikes, k=1)
+sample_metadata_striatum_all$ruv <- set1$W
+
+#size factor estimation to identify ip vs ub differences and potential outliers
+sf1 <- estimateSizeFactorsForMatrix(counts(dds_ip_vs_input), controlGenes = rownames(counts(dds_ip_vs_input)) %in% ERCC92$TXNAME) #calculates size factors, ignoring transcript length offset (not recommended)
+sf2 <- estimateSizeFactorsForMatrix(counts(dds_ip_vs_input))
+nm <- assays(dds_ip_vs_input)[["avgTxLength"]] #transcript length offsets
+sf3 <- estimateSizeFactorsForMatrix(counts(dds_ip_vs_input) / nm) #normalisation factor (aka size factor with transcript length offset included: Done by default in DeSeq2 when supplying a tximport object with txlength offsets)
+
+#generate density plots of gene normalisation factors
+nf.df <- as.data.frame(nf)
+nf.tib <- as_tibble(rownames_to_column(nf.df), var = "genename")
+nf.tidy <- nf.tib %>% gather(colnames(nf.tib)[2:29],
+                                     key = "samplename",
+                                     value = "normFactors")
+nf.tidy <- nf.tidy %>%
+  separate(samplename, c("ip", "region", "sampleinfo", "batch"), sep = c(2,4,6))
+
+ggplot(nf.tidy, aes(normFactors)) + 
+  geom_density(alpha = 0.9, position = 'identity') + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  facet_grid(vars(samplename)) +
+  xlim(0.5, 2)
+
+#plot median normalisation factors for samples
+ggplot(data=enframe(sf3), aes(x=name, y=value)) + geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  coord_flip()
+
+round(quantile(rowMeans(counts(dds_ip_vs_input)), 0:10/10))
 
 #filter for min 10 counts in min 2 samples
 keep_feature <- rowSums(counts(dds_ip_vs_input) >= 10) >=2
-keep_feature <- rowMeans(counts(dds_ip_vs_input)) >= 100
-sum(keep_feature)
+keep_feature <- rowMeans(counts(dds_ip_vs_input)) >= 125
 dds_ip_vs_input <- dds_ip_vs_input[keep_feature, ]
 dim(dds_ip_vs_input)
+round(quantile(rowMeans(counts(dds_ip_vs_input)), 0:10/10))
 
 #variance stabilised counts: Note that blind is set to False
 vsd_ip_vs_input <- vst(dds_ip_vs_input, blind=F)
 
 #Choose
 counts <- counts(dds_ip_vs_input, normalized = T)
+counts <- log10(counts + 1)
+
 counts <- assay(vsd_ip_vs_input)
-head(counts[,1:5])
+
 write.csv(counts, file = "counts.csv")
 
 #plot mean variance relationship
-counts <- log10(counts + 1)
 counts.t <- t(counts)
 counts.t <- as.data.frame(counts.t)
 counts.t <- as_tibble(rownames_to_column(counts.t, var = "samplename"))
 
-counts.t.tidy <- counts.t %>% gather(colnames(counts.t)[2:11318],
+counts.t.tidy <- counts.t %>% gather(colnames(counts.t)[2:length(colnames(counts.t))],
                                    key =  "genename",
                                    value = "normalized_counts")
 
@@ -88,16 +135,6 @@ plot(d,xlim=c(0,8),main="",ylim=c(0,.45),xlab="Raw read counts per gene (log10)"
 
 for (s in 2:ncol(counts)){
   logcounts <- log(counts[,s]+1,10) 
-  d <- density(logcounts)
-  lines(d)
-}
-
-# density plot of raw read counts (vsd)
-logcounts <- log10(counts)
-d <- density(logcounts)
-plot(d,xlim=c(0,2),main="",ylim=c(0,30),xlab="Raw read counts per gene (log10)", ylab="Density")
-for (s in 2:ncol(counts)){
-  logcounts <- log(counts[,s],10) 
   d <- density(logcounts)
   lines(d)
 }
@@ -199,7 +236,7 @@ striatal_genes <- rownames(res_ip_vs_input_enriched)
 txi_ip <- tximport(files_striatum_all[1:20], type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
 sample_metadata <- sample_metadata_striatum_all[1:20,]
 
-dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ collection_day + age_months + region)
+dds_ip <- DESeqDataSetFromTximport(txi_ip, colData = sample_metadata, design = ~ region)
 #subset for striatal enriched genes
 striatal_keep <- rownames(dds_ip) %in% striatal_genes
 dds_ip <- dds_ip[striatal_keep, ]
@@ -212,7 +249,7 @@ dim(dds_ip)
 
 dds_ip <- DESeq(dds_ip, minReplicatesForReplace = Inf)
 
-res_ip_region <- results(dds_ip)
+res_ip_region <- results(dds_ip, alpha = 0.05, lfcThreshold = 1)
 summary(res_ip_region)
 
 # df <- data.frame(Sample=factor(c(1:10)), Group=c(rep("A",5), rep("B",5)))
