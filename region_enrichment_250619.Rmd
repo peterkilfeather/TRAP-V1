@@ -1,16 +1,16 @@
 ---
 title: "R Notebook"
 output:
+  html_notebook: default
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
-  html_notebook: default
 ---
 
-*Test bold text*
+**Axon and Midbrain IP/Input Comparisons**
 
 Load packages
-```{r, results='hide'}
+```{r setup, results='hide'}
 library(DESeq2)
 library(tximport)
 library(GenomicFeatures)
@@ -31,14 +31,41 @@ library(Biobase)
 library(preprocessCore)
 library(EDASeq)
 library(fgsea)
-```
+library(STRINGdb)
+library(ggbeeswarm)
+library(ggsci)
 
-```{r setup}
 dir.create(file.path('.', 'previous'), showWarnings = F)
 output_dir <- file.path('output',paste('deseq', Sys.Date(), format(Sys.time(), "%H:%M"), sep = '_'))
 dir.create(output_dir, recursive = T)
 base_dir <- getwd()
 knitr::opts_knit$set(root.dir = output_dir)
+
+sample_metadata_all <- read.csv(file.path(base_dir, 'sample_metadata_020719.csv'), header = T)
+sample_metadata_all <- sample_metadata_all %>% filter(outlier == 'n' & ip_pool == 'n')
+kallisto_path <- "/zfs/analysis/active_r_projects/trap_kall_protcod_ercc/"
+
+load(file.path(base_dir, 'anno_mouse.RData'))
+load(file.path(base_dir, 'tx2gene_mouse_ercc.RData'))
+```
+
+**Global parameters**
+```{r}
+alpha = 0.01
+res_lfc = 0 #lfc threshold for DESeq2 results functions
+lfc = 0 #lfc threshold for post-results filtering genes
+replicate_replace = Inf
+```
+
+Load annotation database and mouse ERCC92 tx2gene
+```{r}
+# txdb <- makeTxDbFromGFF('/zfs/referenceGenomes/mouse/Mus_musculus.GRCm38.96.gtf')
+# k <- keys(txdb, keytype = "TXNAME")
+# tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
+# ERCC92 <- read.csv("ERCC92_names.txt", header = F)
+# ERCC92$V2 <- ERCC92$V1
+# colnames(ERCC92) <- c("TXNAME", "GENEID")
+# tx2gene_ERCC <- bind_rows(tx2gene, ERCC92)
 ```
 
 *Create functions for repeated code*
@@ -59,12 +86,15 @@ run_deseq <- function() {
   
   #filter low counts
   keep_feature <- rowMeans(counts(dds)) >= min_counts
+  dds_removed <- dds[!keep_feature, ]
   dds <- dds[keep_feature, ]
   paste('Dimensions of sample data: ', dim(dds))
   
   #calculate XYZ
   dds <- DESeq(dds, minReplicatesForReplace = replicate_replace)
+  counts <- counts(dds, normalized = T)
   assign(paste('dds', name, sep = '_'), envir = .GlobalEnv, dds)
+  assign(paste('dds_removed', name, sep = '_'), envir = .GlobalEnv, dds_removed)
   
   #create contrast variable
   contrast_name <- tail(resultsNames(dds), n=1)
@@ -96,50 +126,32 @@ run_deseq <- function() {
   res_tb <- res %>%
     data.frame() %>%
     rownames_to_column(var="gene") %>% 
-    as_tibble()
+    as_tibble() %>%
+    na.omit()
 
   sig <- res_tb %>%
     filter(padj < alpha & abs(log2FoldChange) > lfc)
-  sig <- merge(as.data.frame(sig), anno, by.x = c("gene"), by.y = c("ensembl_gene_id"))
+  sig <- merge(as.data.frame(sig), anno, by.x = c("gene"), by.y = c("Gene.stable.ID"))
   sig <- merge(as.data.frame(sig), as.data.frame(counts(dds, normalized=TRUE)), 
                by.x = c("gene"), by.y = "row.names", sort=F)
   assign(paste('sig', name, sep = '_'), envir = .GlobalEnv, sig)
   
-  res_tb <- merge(as.data.frame(res_tb), anno, by.x = c("gene"), by.y = c("ensembl_gene_id"))
+  res_tb <- merge(as.data.frame(res_tb), anno, by.x = c("gene"), by.y = c("Gene.stable.ID"))
   res_tb <- merge(as.data.frame(res_tb), as.data.frame(counts(dds, normalized=TRUE)), 
                   by.x = c("gene"), by.y = "row.names", sort=F)
+  res_tb$padj[res_tb$padj == 0] <- .Machine$double.xmin #replacing absolute 0 values with smallest possible double for GSEA rank calculation
   assign(paste('res_output', name, sep = '_'), envir = .GlobalEnv, res_tb)
   
+  res_tb$fcsign <- sign(res_tb$log2FoldChange)
+  res_tb$logP <- -log10(res_tb$padj)
+  res_tb$metric <- res_tb$logP/res_tb$fcsign
+  res_tb <- res_tb %>% unique() %>% na.omit() %>% arrange(desc(metric))
+  rank <- res_tb[,c("HGNC.symbol", "metric")]
+  assign(paste('rank', name, sep = '_'), envir = .GlobalEnv, rank)
+  
   write.csv(res_tb, file = paste('results', '_', name, '.csv', sep = ''))
+  write.table(rank, file=paste('rank', '_', name, '.rnk', sep = ''), sep = '\t', quote=F, row.names=F)
 }
-```
-
-Input folder locations
-```{r}
-sample_metadata_all <- read.csv(file.path(base_dir, 'sample_metadata_250619.csv'), header = T)
-kallisto_path <- "/zfs/analysis/active_r_projects/trap_kall_protcod_ercc/"
-```
-
-Load annotation database and mouse ERCC92 tx2gene
-```{r}
-# txdb <- makeTxDbFromGFF('/zfs/referenceGenomes/mouse/Mus_musculus.GRCm38.96.gtf')
-# k <- keys(txdb, keytype = "TXNAME")
-# tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
-# ERCC92 <- read.csv("ERCC92_names.txt", header = F)
-# ERCC92$V2 <- ERCC92$V1
-# colnames(ERCC92) <- c("TXNAME", "GENEID")
-# tx2gene_ERCC <- bind_rows(tx2gene, ERCC92)
-
-load(file.path(base_dir, 'anno_mouse.RData'))
-load(file.path(base_dir, 'tx2gene_mouse_ercc.RData'))
-```
-
-*Global parameters*
-```{r}
-alpha = 0.01
-res_lfc = 0 #lfc threshold for DESeq2 results functions
-lfc = 0 #lfc threshold for post-results filtering genes
-replicate_replace = Inf
 ```
 
 **Comparison 1 -> Axon IP vs Midbrain IP**
@@ -157,7 +169,7 @@ run_deseq()
 
 **Comparison 2 -> Axon UB vs Midbrain UB**
 ```{r}
-name = 'axon_input_vs_mb_input'
+name = 'axon_ub_vs_mb_ub'
 
 metadata_filter = "ip == 'input' & batch_trap %in% c('b2','b3')"
 
@@ -245,3 +257,123 @@ min_counts = 10
 
 run_deseq()
 ```
+
+```{r}
+mb_enriched <- res_output_mb_ip_vs_mb_ub %>% filter(log2FoldChange > 0 & padj < 0.01)
+mb_ip_genes <- nrow(mb_enriched)
+axon_enriched <- res_output_axon_ip_vs_axon_ub %>% filter(log2FoldChange > 0 & padj < 0.01)
+axon_ip_genes <- nrow(axon_enriched)
+
+mb_axon_shared <- mb_enriched %>% filter(gene %in% axon_enriched$gene) %>% select(c("gene"))
+mb_axon_genes <- nrow(mb_axon_shared)
+mb_only <- mb_enriched %>% filter(!gene %in% axon_enriched$gene) %>% select(c("gene"))
+axon_only <- axon_enriched %>% filter(!gene %in% mb_enriched$gene) %>% select(c("gene"))
+
+ds_enriched <- res_output_ds_ip_vs_ds_ub %>% filter(log2FoldChange > 2 & padj < 0.001)
+ds_ip_genes <- nrow(ds_enriched)
+vs_enriched <- res_output_vs_ip_vs_vs_ub %>% filter(log2FoldChange > 2 & padj < 0.001)
+vs_ip_genes <- nrow(vs_enriched)
+
+ds_vs_shared <- vs_enriched %>% filter(gene %in% ds_enriched$gene) %>% select(c("gene"))
+ds_only <- ds_enriched %>% filter(!gene %in% vs_enriched$gene) %>% select(c("gene"))
+ds_only_genes <- nrow(ds_only)
+vs_only <- vs_enriched %>% filter(!gene %in% ds_enriched$gene) %>% select(c("gene"))
+vs_only_genes <- nrow(vs_only)
+
+ds_ip_enriched_over_vs_ip <- res_output_ds_ip_vs_vs_ip %>% filter(log2FoldChange < 0.58 & padj < 0.001)
+vs_ip_enriched_over_vs_ip <- res_output_ds_ip_vs_vs_ip %>% filter(log2FoldChange > 0.58 & padj < 0.001)
+ds_ub_enriched_over_vs_ub <- res_output_ds_ub_vs_vs_ub %>% filter(log2FoldChange < 0.58 & padj < 0.001)
+vs_ub_enriched_over_ds_ub <- res_output_ds_ub_vs_vs_ub %>% filter(log2FoldChange > 0.58 & padj < 0.001)
+ds_ip_enriched_over_vs_ip <- ds_ip_enriched_over_vs_ip %>% filter(!gene %in% ds_ub_enriched_over_vs_ub$gene)
+vs_ip_enriched_over_ds_ip <- vs_ip_enriched_over_ds_ip %>% filter(!gene %in% vs_ub_enriched_over_ds_ub$gene)
+
+```
+
+```{r}
+genes <- c('ENSMUSG00000030310', 'ENSMUSG00000030108', 'ENSMUSG00000030307', 'ENSMUSG00000021609')
+all_counts <- as.data.frame(log2(counts(dds_axon_ip_vs_axon_ub, normalized = T)))
+
+counts_to_plot <- comparison %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>% 
+  extract(sample, c('ip', 'region', 'age', 'day'), regex = "([A-Z]{2})([A-Z]{2})([0-9]*)(.*)", remove = TRUE, convert = FALSE) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID"))
+  
+display.brewer.all(colorblindFriendly = TRUE)
+
+ip_ub_multi_violinplot <- ggplot(counts_to_plot, aes(factor(HGNC.symbol), counts, fill = factor(ip))) + 
+  geom_violin() + 
+  geom_quasirandom(alpha = 0.4, dodge.width=1, size = 0.75) + 
+  theme_bw() + 
+  labs(fill='Sample Type') + 
+  xlab("Gene") + 
+  ylab("log2 Counts") +
+  scale_color_npg() +
+  scale_fill_npg()
+
+ip_ub_multi_violinplot
+
+ip_ub_multi_boxplot <- ggplot(dat_gat_ip, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() + 
+  labs(fill = 'Sample Type') +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg()
+
+ip_ub_multi_boxplot
+#+ facet_grid(age ~ region)
+
+```
+
+```{r}
+genes <- c('ENSMUSG00000021609')
+
+ip_ub_single_violinplot <- ggplot(counts_to_plot, aes(factor(ip), counts)) + 
+  geom_violin(aes(fill = factor(ip))) + 
+  geom_jitter(height = 0, width = 0.1) + 
+  labs(fill='Sample') + xlab(genes) + 
+  ylab("log2 Counts") + 
+  theme_bw() + 
+  scale_color_npg() +
+  scale_fill_npg()
+
+ip_ub_single_violinplot
+
+ip_ub_single_boxplot <- ggplot(counts_to_plot, aes(factor(ip), counts)) + 
+  geom_boxplot(aes(fill = factor(ip))) + 
+  geom_jitter(height = 0, width = 0.1) + 
+  labs(fill='Sample') + xlab(genes) + 
+  ylab("log2 Counts") + 
+  theme_bw() + 
+  scale_color_npg() +
+  scale_fill_npg()
+
+ip_ub_single_boxplot
+
+```
+
+```{r}
+res_axon_mb_ip_vs_ub_merge0 <- merge(res_output_axon_ip_vs_axon_ub, res_output_mb_ip_vs_mb_ub, by.x = c("gene"), by.y = c("gene"))
+
+genes <- c('ENSMUSG00000020048', 'ENSMUSG00000026864', 'ENSMUSG00000020368', 'ENSMUSG00000003814')
+
+res_axon_mb_ip_vs_ub_merge <- res_axon_mb_ip_vs_ub_merge0 %>% filter(gene %in% genes) %>% select(Gene.name.x, log2FoldChange.x, log2FoldChange.y) %>% rename(gene = Gene.name.x, axon = log2FoldChange.x, soma = log2FoldChange.y) %>% gather(region, enrichment, -gene) %>% unite(gene_region, c(gene, region))
+
+g <- ggplot(res_axon_mb_ip_vs_ub_merge, aes(gene_region, enrichment))
+
+g + geom_col()
+
+ggplot(data = res_axon_mb_ip_vs_ub_merge,
+       aes(x = gene_region, y = enrichment, fill = enrichment > 0))+
+  geom_bar(stat = "identity")
+
+ggplot(res_axon_mb_ip_vs_ub_merge, aes(x=gene_region, y=enrichment)) +
+  geom_point(size=2, shape=23)
+
+```
+
