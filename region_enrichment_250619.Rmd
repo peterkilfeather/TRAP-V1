@@ -90,11 +90,27 @@ run_deseq <- function() {
   dds <- dds[keep_feature, ]
   paste('Dimensions of sample data: ', dim(dds))
   
+  #find ERCC spike-ins
+  spikes <- rownames(dds)[grep("^ERCC", rownames(dds))]
+  
   #calculate XYZ
   dds <- DESeq(dds, minReplicatesForReplace = replicate_replace)
   counts <- counts(dds, normalized = T)
   assign(paste('dds', name, sep = '_'), envir = .GlobalEnv, dds)
   assign(paste('dds_removed', name, sep = '_'), envir = .GlobalEnv, dds_removed)
+  
+  #ummary(normalizationFactors(dds))
+  
+  #perform RUVseq
+  eda_set <- newSeqExpressionSet(round(counts(dds, normalized = F)), phenoData = data.frame(sample_metadata, row.names=colnames(counts)))
+  plotRLE(eda_set, outline = F, ylim = c(-3, 3), col = colors()[sample_metadata$ip])
+  eda_set1 <- betweenLaneNormalization(eda_set, which="full")
+  plotRLE(eda_set1, outline = F, ylim = c(-3, 3), col = colors()[sample_metadata$ip])
+  
+  eda_set1 <- RUVg(eda_set, spikes, k=1)
+  pData(eda_set1)
+  plotRLE(eda_set1, outline = F, ylim = c(-3, 3), col = colors()[sample_metadata$ip])
+
   
   #create contrast variable
   contrast_name <- tail(resultsNames(dds), n=1)
@@ -184,7 +200,7 @@ run_deseq()
 ```{r}
 name = 'axon_ip_vs_axon_ub'
 
-metadata_filter = "axon == 'axon' & batch_trap %in% c('b3')"
+metadata_filter = "axon == 'axon'"
 
 design <- ~ age + ip
 
@@ -197,7 +213,7 @@ run_deseq()
 ```{r}
 name = 'mb_ip_vs_mb_ub'
 
-metadata_filter = "axon == 'mb' & batch_trap %in% c('b2','b3')"
+metadata_filter = "axon == 'mb' & batch_trap %in% c('b2', 'b3')"
 
 design <- ~ batch_trap + age + ip
 
@@ -291,9 +307,11 @@ vs_ip_enriched_over_ds_ip <- vs_ip_enriched_over_ds_ip %>% filter(!gene %in% vs_
 
 ```{r}
 genes <- c('ENSMUSG00000030310', 'ENSMUSG00000030108', 'ENSMUSG00000030307', 'ENSMUSG00000021609')
+genes <- c('ENSMUSG00000033208', 'ENSMUSG00000030088', 'ENSMUSG00000020932', 'ENSMUSG00000053279', 'ENSMUSG00000000214')
+
 all_counts <- as.data.frame(log2(counts(dds_axon_ip_vs_axon_ub, normalized = T)))
 
-counts_to_plot <- comparison %>% 
+counts_to_plot <- all_counts %>% 
   rownames_to_column(var = "gene") %>% 
   as_tibble %>%
   filter(gene %in% genes) %>% 
@@ -315,7 +333,7 @@ ip_ub_multi_violinplot <- ggplot(counts_to_plot, aes(factor(HGNC.symbol), counts
 
 ip_ub_multi_violinplot
 
-ip_ub_multi_boxplot <- ggplot(dat_gat_ip, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = HGNC.symbol, y = counts, fill = ip)) +
   geom_boxplot(outlier.size = 0) +
   geom_point(pch = 21, position = position_jitterdodge()) +
   theme_bw() + 
@@ -323,7 +341,8 @@ ip_ub_multi_boxplot <- ggplot(dat_gat_ip, aes(x = HGNC.symbol, y = counts, fill 
   xlab('Gene') +
   ylab('log2 Counts') +
   scale_color_npg() +
-  scale_fill_npg()
+  scale_fill_npg() +
+  ggtitle('Astrocyte markers in Axon TRAP samples')
 
 ip_ub_multi_boxplot
 #+ facet_grid(age ~ region)
@@ -336,7 +355,8 @@ genes <- c('ENSMUSG00000021609')
 ip_ub_single_violinplot <- ggplot(counts_to_plot, aes(factor(ip), counts)) + 
   geom_violin(aes(fill = factor(ip))) + 
   geom_jitter(height = 0, width = 0.1) + 
-  labs(fill='Sample') + xlab(genes) + 
+  labs(fill='Sample') + 
+  xlab('Sample') + 
   ylab("log2 Counts") + 
   theme_bw() + 
   scale_color_npg() +
@@ -347,7 +367,8 @@ ip_ub_single_violinplot
 ip_ub_single_boxplot <- ggplot(counts_to_plot, aes(factor(ip), counts)) + 
   geom_boxplot(aes(fill = factor(ip))) + 
   geom_jitter(height = 0, width = 0.1) + 
-  labs(fill='Sample') + xlab(genes) + 
+  labs(fill='Sample') + 
+  xlab(genes) + 
   ylab("log2 Counts") + 
   theme_bw() + 
   scale_color_npg() +
@@ -358,22 +379,69 @@ ip_ub_single_boxplot
 ```
 
 ```{r}
-res_axon_mb_ip_vs_ub_merge0 <- merge(res_output_axon_ip_vs_axon_ub, res_output_mb_ip_vs_mb_ub, by.x = c("gene"), by.y = c("gene"))
+er_chaperone_genes <- c('ENSMUSG00000020048', 'ENSMUSG00000026864', 'ENSMUSG00000032115', 'ENSMUSG00000024357', 'ENSMUSG00000004460', 'ENSMUSG00000027006', 'ENSMUSG00000022136', 'ENSMUSG00000019802', 'ENSMUSG00000026740', 'ENSMUSG00000070436', 'ENSMUSG00000020048', 'ENSMUSG00000023973')
 
-genes <- c('ENSMUSG00000020048', 'ENSMUSG00000026864', 'ENSMUSG00000020368', 'ENSMUSG00000003814')
+glycosylation_genes <- c('ENSMUSG00000020368', 'ENSMUSG00000003814', 'ENSMUSG00000089960', 'ENSMUSG00000030062', 'ENSMUSG00000027642', 'ENSMUSG00000071650', 'ENSMUSG00000040462', 'ENSMUSG00000020311', 'ENSMUSG00000036646', 'ENSMUSG00000038312', 'ENSMUSG00000043019')
 
-res_axon_mb_ip_vs_ub_merge <- res_axon_mb_ip_vs_ub_merge0 %>% filter(gene %in% genes) %>% select(Gene.name.x, log2FoldChange.x, log2FoldChange.y) %>% rename(gene = Gene.name.x, axon = log2FoldChange.x, soma = log2FoldChange.y) %>% gather(region, enrichment, -gene) %>% unite(gene_region, c(gene, region))
+oligosaccharide_genes <- c('ENSMUSG00000039427', 'ENSMUSG00000063362', 'ENSMUSG00000033809', 'ENSMUSG00000039740', 'ENSMUSG00000052395', 'ENSMUSG00000032059', 'ENSMUSG00000035845', 'ENSMUSG00000073792', 'ENSMUSG00000035704', 'ENSMUSG00000032116', 'ENSMUSG00000032437', 'ENSMUSG00000030035', 'ENSMUSG00000038803', 'ENSMUSG00000036632', 'ENSMUSG00000078919')
 
-g <- ggplot(res_axon_mb_ip_vs_ub_merge, aes(gene_region, enrichment))
+genes <- er_chaperone_genes
 
-g + geom_col()
+all_results <- res_output_axon_ip_vs_axon_ub %>% inner_join(res_output_mb_ip_vs_mb_ub, by = c("gene" = "gene"))
 
-ggplot(data = res_axon_mb_ip_vs_ub_merge,
-       aes(x = gene_region, y = enrichment, fill = enrichment > 0))+
-  geom_bar(stat = "identity")
+results_to_plot <- all_results %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  select(Gene.name.x, log2FoldChange.x, log2FoldChange.y) %>% 
+  rename(gene = Gene.name.x, axon = log2FoldChange.x, soma = log2FoldChange.y) %>% 
+  gather(region, enrichment, -gene)
 
-ggplot(res_axon_mb_ip_vs_ub_merge, aes(x=gene_region, y=enrichment)) +
-  geom_point(size=2, shape=23)
+ggplot(results_to_plot, aes(x = gene, y = enrichment, fill = region)) + 
+  geom_bar(stat = "identity", position = "dodge", colour="black") +
+  theme_bw() +
+  coord_flip() +
+  scale_color_npg() +
+  scale_fill_npg() +
+  ggtitle('Glycosylation Gene IP Expression Relative to Input') +
+  labs(fill='Region') + 
+  xlab('Gene') + 
+  ylab('Log2 fold change compared to input') +
+  geom_hline(yintercept = 0)
+
+```
+
+```{r}
+nf <- as.data.frame(normalizationFactors(dds_axon_ip_vs_axon_ub)) 
+nf <- nf %>%
+  rownames_to_column(var = 'gene') %>%
+  as_tibble() %>%
+  gather(colnames(nf), key = 'samplename', value = 'normFactors') %>%
+  separate(samplename, c('ip', 'region', 'sampleinfo'), sep = c(2, 4))
+
+ggplot(nf, aes(normFactors, group = ip, fill = ip)) + 
+  geom_density(alpha = 0.8, position = 'identity') + 
+  theme_bw() +
+  xlim(0.5, 2) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  ggtitle('Normalisation Factor Distribution') +
+  labs(fill='Sample Type') + 
+  xlab('Normalisation Factor') + 
+  ylab('Density') +
+  geom_hline(yintercept = 0)
+
+ggsave("nf_plot_mb_batch_2.pdf", width = 20, height = 20, units = "cm")
+
+
+  facet_grid(vars(samplename)) +
+
+#plot median normalisation factors for samples
+ggplot(data=enframe(sf3), aes(x=name, y=value)) + geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  coord_flip()
+
+round(quantile(rowMeans(counts(dds_ip_vs_input)), 0:10/10))
+
 
 ```
 
