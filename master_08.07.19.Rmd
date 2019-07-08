@@ -441,7 +441,7 @@ ggplot(nf, aes(normFactors, group = ip, fill = ip)) +
 #ggsave("nf_plot_mb_batch_2.pdf", width = 20, height = 20, units = "cm")
 ```
 
-Importing Trinity/kallisto counts
+Cre/eGFP unbound plots
 ```{r}
 trinity_tx2gene <- read.csv("/zfs/analysis/PK_TRAP/trinity_out_dir/tx_names.txt", header = F) %>%
   rename(TXID = V1) %>%
@@ -449,47 +449,49 @@ trinity_tx2gene <- read.csv("/zfs/analysis/PK_TRAP/trinity_out_dir/tx_names.txt"
   mutate(GENEID = recode(GENEID, TRINITY_DN144_c0_g1_i8 = "eGFP-L10a", TRINITY_DN144_c0_g5_i1 = "IRES-Cre")) %>%
   as_tibble()
 
-trinity_path <- "/zfs/analysis/PK_TRAP/trinity_kallisto_unbound_mb_axon_kw_pk/"
+trinity_ub_path <- "/zfs/analysis/PK_TRAP/trinity_kallisto_all/"
 
 name = 'axon_ub_vs_mb_ub'
 metadata_filter = "ip == 'input' & batch_trap %in% c('b2','b3')"
 design <- ~ batch_trap + age + axon
 
-trinity_sample_metadata <- sample_metadata_all %>% data.frame() %>%
+trinity_ub_sample_metadata <- sample_metadata_all %>% data.frame() %>%
                     as_tibble() %>% filter(eval(parse(text=metadata_filter)))
 
 #create list of kallisto input files
-trinity_files <- file.path(trinity_path, trinity_sample_metadata$sample_code, "abundance.h5")
-names(trinity_files) <- trinity_sample_metadata$sample_name
+trinity_ub_files <- file.path(trinity_ub_path, trinity_ub_sample_metadata$sample_code, "abundance.h5")
+names(trinity_ub_files) <- trinity_ub_sample_metadata$sample_name
 
 #import kallisto files
-trinity_txi <- tximport(trinity_files, type = "kallisto", tx2gene = trinity_tx2gene, ignoreTxVersion = F, geneIdCol = "GENEID")
+trinity_ub_txi <- tximport(trinity_ub_files, type = "kallisto", tx2gene = trinity_tx2gene, ignoreTxVersion = F, geneIdCol = "GENEID")
   
 #create deseq2 object
-trinity_dds <- DESeqDataSetFromTximport(trinity_txi, colData = trinity_sample_metadata, design = design)
+trinity_ub_dds <- DESeqDataSetFromTximport(trinity_ub_txi, colData = trinity_ub_sample_metadata, design = design)
 
 #calculate XYZ
-trinity_dds <- DESeq(trinity_dds, minReplicatesForReplace = replicate_replace)
-trinity_counts <- as.data.frame(counts(trinity_dds, normalized = T)) %>%
+trinity_ub_dds <- DESeq(trinity_ub_dds, minReplicatesForReplace = replicate_replace)
+
+trinity_ub_counts <- as.data.frame(counts(trinity_ub_dds, normalized = T)) %>%
   rownames_to_column(var = "gene") %>%
-  as_tibble()
+  as_tibble() %>%
+  gather(sample,counts,-gene) %>%
+  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) 
 
-egfp_l10a_counts <- trinity_counts %>%
+  egfp_l10a_ub_counts <- trinity_ub_counts %>%
   filter(gene == 'eGFP-L10a') %>%
-  gather(sample,counts,-gene) %>%
-  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) %>%
-  select(gene, sample, region, counts)
+  select(gene, sample, region, ip, counts) 
 
-ires_cre_counts <- trinity_counts %>%
+ires_cre_ub_counts <- trinity_ub_counts %>%
   filter(gene == 'IRES-Cre') %>%
-  gather(sample,counts,-gene) %>%
-  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) %>%
-  select(gene, sample, region, counts) %>%
-  mutate(counts = log2(counts))
+  select(gene, sample, region, ip, counts) 
 
-eGFP_multi_boxplot <- ggplot(egfp_l10a_counts, aes(x = region, y = counts, fill = region)) +
+#eGFP Input samples
+caption <- 'eGFP is detectable in input RNA from striatum'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+eGFP_multi_boxplot <- ggplot(egfp_l10a_ub_counts, aes(x = region, y = counts, fill = region)) +
   geom_boxplot(outlier.size = 0) +
-  geom_point(pch = 21) +
+  geom_jitter(alpha = 0.5, pch = 21) +  
   theme_bw() + 
   labs(fill = 'Region') +
   xlab('Gene') +
@@ -497,23 +499,193 @@ eGFP_multi_boxplot <- ggplot(egfp_l10a_counts, aes(x = region, y = counts, fill 
   expand_limits(y = 0) +
   scale_color_npg() +
   scale_fill_npg() +
-  ggtitle('eGFP-L10a Transcript Counts in Input RNA')
+  labs(fill = 'Region',
+       title = 'eGFP-L10a Transcript Counts in Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "none")
 
 eGFP_multi_boxplot
 
-cre_multi_boxplot <- ggplot(ires_cre_counts, aes(x = region, y = counts, fill = region)) +
+#Cre Input samples
+caption <- 'Cre is not detectable in input RNA from striatum'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+cre_multi_boxplot <- ggplot(ires_cre_ub_counts, aes(x = region, y = counts, fill = region)) +
   geom_boxplot(outlier.size = 0) +
-  geom_point(pch = 21) +
+  geom_jitter(alpha = 0.5, pch = 21) +
   theme_bw() + 
   labs(fill = 'Region') +
   xlab('Gene') +
-  ylab('Log2 Counts') +
+  ylab('Counts') +
   expand_limits(y = 0) +
   scale_color_npg() +
   scale_fill_npg() +
-  ggtitle('eGFP-L10a Transcript Counts in Input RNA')
+  labs(fill = 'Region',
+       title = 'IRES-Cre Transcript Counts in Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "none")
 
 cre_multi_boxplot
 
 ```
 
+Cre/eGFP IP plots
+```{r}
+trinity_ip_path <- "/zfs/analysis/PK_TRAP/trinity_kallisto_all/"
+
+name = 'axon_ip_vs_mb_ip'
+metadata_filter = "ip == 'ip' & batch_trap %in% c('b2', 'b3')"
+design <- ~ age + axon
+
+trinity_ip_sample_metadata <- sample_metadata_all %>% data.frame() %>%
+                    as_tibble() %>% filter(eval(parse(text=metadata_filter)))
+
+#create list of kallisto input files
+trinity_ip_files <- file.path(trinity_ip_path, trinity_ip_sample_metadata$sample_code, "abundance.h5")
+names(trinity_ip_files) <- trinity_ip_sample_metadata$sample_name
+
+#import kallisto files
+trinity_ip_txi <- tximport(trinity_ip_files, type = "kallisto", tx2gene = trinity_tx2gene, ignoreTxVersion = F, geneIdCol = "GENEID")
+  
+#create deseq2 object
+trinity_ip_dds <- DESeqDataSetFromTximport(trinity_ip_txi, colData = trinity_ip_sample_metadata, design = design)
+
+#calculate XYZ
+trinity_ip_dds <- DESeq(trinity_ip_dds, minReplicatesForReplace = replicate_replace)
+
+trinity_ip_counts <- as.data.frame(counts(trinity_ip_dds, normalized = T)) %>%
+  rownames_to_column(var = "gene") %>%
+  as_tibble() %>%
+  gather(sample,counts,-gene) %>%
+  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) 
+
+  egfp_l10a_ip_counts <- trinity_ip_counts %>%
+  filter(gene == 'eGFP-L10a') %>%
+  select(gene, sample, region, ip, counts) 
+
+ires_cre_ip_counts <- trinity_ip_counts %>%
+  filter(gene == 'IRES-Cre') %>%
+  select(gene, sample, region, ip, counts) 
+
+#eGFP IP samples
+caption <- 'eGFP-L10a is detectable in axonal IP samples.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+eGFP_multi_boxplot <- ggplot(egfp_l10a_ip_counts, aes(x = region, y = counts, fill = region)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_jitter(alpha = 0.5, pch = 21) +
+  theme_bw() + 
+  xlab('Gene') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'eGFP-L10a Transcript Counts in IP RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "none")
+
+eGFP_multi_boxplot
+
+#Cre IP samples
+caption <- 'Cre is below the limit of detection in axonal IP samples. It is either present at a low level in non-dopaminergic cells or not transcribed at all.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+cre_multi_boxplot <- ggplot(ires_cre_ip_counts, aes(x = region, y = counts, fill = region)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_jitter(alpha = 0.5, pch = 21) +
+  theme_bw() + 
+  labs(fill = 'Region') +
+  xlab('Region') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'IRES-Cre Transcript Counts in IP RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "none")
+
+cre_multi_boxplot
+
+```
+
+Cre/eGFP IP vs UB plots
+```{r}
+trinity_ip_ub_path <- "/zfs/analysis/PK_TRAP/trinity_kallisto_all/"
+
+name = 'ip_vs_ub'
+metadata_filter = "batch_trap %in% c('b2', 'b3')"
+design <- ~ age + ip
+
+trinity_ip_ub_sample_metadata <- sample_metadata_all %>% data.frame() %>%
+                    as_tibble() %>% filter(eval(parse(text=metadata_filter)))
+
+#create list of kallisto input files
+trinity_ip_ub_files <- file.path(trinity_ip_ub_path, trinity_ip_ub_sample_metadata$sample_code, "abundance.h5")
+names(trinity_ip_ub_files) <- trinity_ip_ub_sample_metadata$sample_name
+
+#import kallisto files
+trinity_ip_ub_txi <- tximport(trinity_ip_ub_files, type = "kallisto", tx2gene = trinity_tx2gene, ignoreTxVersion = F, geneIdCol = "GENEID")
+  
+#create deseq2 object
+trinity_ip_ub_dds <- DESeqDataSetFromTximport(trinity_ip_ub_txi, colData = trinity_ip_ub_sample_metadata, design = design)
+
+#calculate XYZ
+trinity_ip_ub_dds <- DESeq(trinity_ip_ub_dds, minReplicatesForReplace = replicate_replace)
+trinity_ip_ub_counts <- as.data.frame(counts(trinity_ip_ub_dds, normalized = T)) %>%
+  rownames_to_column(var = "gene") %>%
+  as_tibble() %>%
+  gather(sample,counts,-gene) %>%
+  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) 
+
+  egfp_l10a_ip_ub_counts <- trinity_ip_ub_counts %>%
+  filter(gene == 'eGFP-L10a') %>%
+  select(gene, sample, region, ip, counts) 
+
+ires_cre_ip_ub_counts <- trinity_ip_ub_counts %>%
+  filter(gene == 'IRES-Cre') %>%
+  select(gene, sample, region, ip, counts) 
+
+#eGFP IP and UB samples
+caption <- 'No enrichment of eGFP-L10a is seen in axonal IP samples.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+eGFP_multi_boxplot <- ggplot(egfp_l10a_ip_ub_counts, aes(x = region, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() + 
+  xlab('Gene') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'eGFP-L10a Transcript Counts in IP and Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+eGFP_multi_boxplot
+
+#Cre IP and UB samples
+caption <- 'Very little evidence for axonal enrichment of cre'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+cre_multi_boxplot <- ggplot(ires_cre_ip_ub_counts, aes(x = region, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() + 
+  labs(fill = 'Region') +
+  xlab('Region') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = 'IRES-Cre Transcript Counts in IP and Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+cre_multi_boxplot
+
+```
