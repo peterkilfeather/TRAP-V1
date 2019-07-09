@@ -10,7 +10,7 @@
 - Created 'sample_codes.txt': cat the files, uniq, cut sample code, pipe into file:
   ```
   for i in fastq/*.gz ; do echo $i | cut -d '_' -f 3 >> temp ; done
-cat temp | sort | uniq >> sample_codes.txt
+  cat temp | sort | uniq >> sample_codes.txt
   ```
 - Kallisto quant to quantify transcripts: 
   ```
