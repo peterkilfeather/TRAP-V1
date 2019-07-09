@@ -3,9 +3,13 @@
 - Used Trinity to generate transcript sequences de novo
 - eGFP-L10a: 'TRINITY_DN144_c0_g1_i8' length 1849
 - IRES-Cre: 'TRINITY_DN144_c0_g5_i1' length 1805
+- Cleared zfs snapshots:
+```
+for snapshot in `sudo zfs list -H -t snapshot | cut -f 1` ; do sudo zfs destroy $snapshot ; done
+```
 - Created 'sample_codes.txt': cat the files, uniq, cut sample code, pipe into file:
 ```
-for i in fastq/*.gz ; do echo $i | cut -d '_' -f 3  temp ; done
+for i in fastq/*.gz ; do echo $i | cut -d '_' -f 3 >> temp ; done
 cat temp | sort | uniq >> sample_codes.txt
 ```
 - Kallisto quant to quantify transcripts: 
@@ -22,13 +26,62 @@ STAR --runMode genomeGenerate --runThreadN 8 --genomeDir Mus_musculus.GRCm38.dna
 ```
 - Run STAR with on the fly annotation and 2 pass mapping with no shared memory: 
 ```
-while read s ; do echo "$s" ; R1="" ; R2="" ; for i in fastq/*${s}_1.fastq.gz ; do R1+="$i," ; done ; for j in fastq/*${s}_2.fastq.gz ; do R2+="$j," ; done ; STAR --genomeDir /mnt/blue/reference/Mus_musculus.GRCm38.dna.primary_assembly.ERCC/ --runThreadN 8 --outFilterType BySJout --outFilterMultimapNmax 20 -- alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNoverReadLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --genomeLoad NoSharedMemory --outFileNamePrefix star_pc_ercc/ --readFilesCommand zcat --outReadsUnmapped Fastx --outSAMtype BAM Unsorted --sjdbGTFfile /mnt/blue/reference/Mus_musculus.GRCm38.97.gtf --sjdbOverhang 74 --genomeSAindexNbases 14 --readFilesIn $R1 $R2 ; done < sample_codes.txt
+while read s ; do echo "$s" ; R1="" ; R2="" ; for i in fastq/*${s}_1.fastq.gz ; do R1+="$i," ; done ; for j in fastq/*${s}_2.fastq.gz ; do R2+="$j," ; done ; STAR --genomeDir /references/Mus_musculus.GRCm38.dna.primary_assembly.ERCC/ --runThreadN 8 --outFilterType BySJout --outFilterMultimapNmax 20 -- alignSJoverhangMin 8 --alignSJDBoverhangMin 1 --outFilterMismatchNoverReadLmax 0.04 --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 --genomeLoad NoSharedMemory --outFileNamePrefix star_pc_ercc/${s}_ --readFilesCommand zcat --outReadsUnmapped Fastx --outSAMtype BAM Unsorted --sjdbGTFfile /mnt/blue/reference/Mus_musculus.GRCm38.97.gtf --sjdbOverhang 74 --genomeSAindexNbases 14 --readFilesIn $R1 $R2 ; done < sample_codes.txt
+```
+- Imported unbound mb/ds/vs counts and plotted deseq normalised values for eGFP-L10a and Cre. Cre not detected in unbound ds/vs
+- Imported ip mb/ds/vs counts and plotted deseq normalised. Cre not detected in ip ds/vs
+
+## 9th July 2019
+
+**Why there is enrichment of astrocyte markers:**
+
+![](https://github.com/langkilfeather/pk_trap/raw/master/astro_dopa_axon_plot.png)
+![](https://github.com/langkilfeather/pk_trap/raw/master/cre_ip_ub.png)
+> - *In axon samples:*
+>   - Slc6a3 is 80-fold enriched, basemean 541
+>   - Th is 12-fold enriched, basemean 4231
+>   - Gfap is 1.93-fold enriched, basemean 6883
+>   - Aldh1l1 is 3-fold enriched, basemean 6436
+>   - S100b is 4-fold depleted, basemean 1014
+>   - eGFP-L10a is not enriched
+>   - Cre is enriched, but too low to quantify (input samples are 0, ip is 6-40)
+> - *In midbrain samples:*
+>   - Slc6a3 is 24-fold enriched, basemean 56462
+>   - Th is 66-fold enriched, basemean 247150
+>   - Gfap is 2.7-fold depleted, basemean 5803
+>   - Aldh1l1 is 5.5-fold depleted, basemean 767
+>   - S100b is 6-fold depleted, basemean 1681
+>   - eGFP-L10a is 4-fold enriched
+>   - Cre is 15-fold enriched
+
+- Slc6a3 and Th are enriched in axonal samples, confirming specific binding of dopamine marker transcripts. Cre is enriched, and qPCR needs to be done for accurate measure.
+
+- However many astrocytic markers are also enriched. This is either due to 
+  1. ectopic Cre expression **or** 
+  2. non-specific binding of striatal transcripts
+
+- A TRAP experiment using 4 Cre-ve mice yielded no RNA. In contrast, the yield of RNA from Cre+ve striatum ranges between 15 and 40 ng (which is close to the range obtained from midbrain (50 ng - 100 ng)). This suggests that the enrichment of astrocyte markers is more likely due to ectopic Cre expression than non-specific binding. 
+
+- In specifically bound, cell-type specific RNA, I assume there should be clusters of functionally related genes. Conversely in non-specifically-bound RNA, I assume that genes should have a weaker functional relationship to one another.
+
+- Downloading and preparing Sakers, 2017 astrocyte TRAP data, to compare IP/Input of 3 bio replicates 
+
+- EBI file parsing:
+```
+while read s ; do awk '{ print $11 } ' >> links.txt ; done < PRJNA300571.txt
+while read s ; do awk '{ print $10 } ' >> md5sum.txt ; done < PRJNA300571.txt
 ```
 
-- Imported unbound mb/ds/vs counts and plotted deseq normalised values (log2 transformed) for eGFP-L10a and Cre. Cre not detected in unbound ds/vs
-- Imported ip mb/ds/vs counts and plotted deseq normalised
+- Cre and eGFP-L10a primers ordered:
+> - IRES-Cre_TRAP_qPCR_PK_fw: ACCTGTTTTGCCGGGTCAGA
+> - IRES-Cre_TRAP_qPCR_PK_rv: TCCAGGGCGCGAGTTGATAG
+> - eGFP-L10a_TRAP_qPCR_PK_fw: CTGTATTAGCCCGGGCCCTC
+> - eGFP-L10a_TRAP_qPCR_PK_rv: GTATGGGTACATGGTGGCGTC
+
+- Produced a table in master_08.07.19 to evaluate expression of striatal cell type markers in axon_ip_vs_ub results table. Astrocyte/OPC/microglia rank top.
 
 
+- Talk about DESeq2 normalisation vs TPM/RPKM/FPKM in lab meeting
 
 
 
