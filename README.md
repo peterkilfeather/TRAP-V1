@@ -37,22 +37,22 @@
 
 ![](https://github.com/langkilfeather/pk_trap/raw/master/astro_dopa_axon_plot.png)
 ![](https://github.com/langkilfeather/pk_trap/raw/master/cre_ip_ub.png)
-> - *In axon samples:*
->   - Slc6a3 is 80-fold enriched, basemean 541
->   - Th is 12-fold enriched, basemean 4231
->   - Gfap is 1.93-fold enriched, basemean 6883
->   - Aldh1l1 is 3-fold enriched, basemean 6436
->   - S100b is 4-fold depleted, basemean 1014
->   - eGFP-L10a is not enriched
->   - Cre is enriched, but too low to quantify (input samples are 0, ip is 6-40)
-> - *In midbrain samples:*
->   - Slc6a3 is 24-fold enriched, basemean 56462
->   - Th is 66-fold enriched, basemean 247150
->   - Gfap is 2.7-fold depleted, basemean 5803
->   - Aldh1l1 is 5.5-fold depleted, basemean 767
->   - S100b is 6-fold depleted, basemean 1681
->   - eGFP-L10a is 4-fold enriched
->   - Cre is 15-fold enriched
+- *In axon samples:*
+  - Slc6a3 is 80-fold enriched, basemean 541
+  - Th is 12-fold enriched, basemean 4231
+  - Gfap is 1.93-fold enriched, basemean 6883
+  - Aldh1l1 is 3-fold enriched, basemean 6436
+  - S100b is 4-fold depleted, basemean 1014
+  - eGFP-L10a is not enriched
+  - Cre is enriched, but too low to quantify (input samples are 0, ip is 6-40)
+- *In midbrain samples:*
+  - Slc6a3 is 24-fold enriched, basemean 56462
+  - Th is 66-fold enriched, basemean 247150
+  - Gfap is 2.7-fold depleted, basemean 5803
+  - Aldh1l1 is 5.5-fold depleted, basemean 767
+  - S100b is 6-fold depleted, basemean 1681
+  - eGFP-L10a is 4-fold enriched
+  - Cre is 15-fold enriched
 
 - Slc6a3 and Th are enriched in axonal samples, confirming specific binding of dopamine marker transcripts. Cre is enriched, and qPCR needs to be done for accurate measure.
 
