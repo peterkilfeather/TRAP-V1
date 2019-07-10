@@ -30,6 +30,8 @@
   ```
 - Imported unbound mb/ds/vs counts and plotted deseq normalised values for eGFP-L10a and Cre. Cre not detected in unbound ds/vs
 - Imported ip mb/ds/vs counts and plotted deseq normalised. Cre not detected in ip ds/vs
+- Cutadapt trimming of PK_TRAP samples improves kallisto mapping by 0.5% with initial trinity transcriptome
+- Cutadapt trimming of PK_TRAP samples improves STAR mapping by 1% with ensembl GRCm38 genome
 
 ## 9th July 2019
 
@@ -84,12 +86,6 @@
 
   >*PAP-depleted transcripts were determined by the intersection of transcripts depleted in SN input/cortex input [FDR < 0.1, log2 (fold-change) < 1.5] and transcripts enriched in cortex TRAP/cortex input [FDR < 0.1, log2 (fold-change) > 1.5]. These transcripts are listed in Dataset S3.*
 
-
-
-
-
-
-
 - Cre and eGFP-L10a primers ordered:
   > - IRES-Cre_TRAP_qPCR_PK_fw: ACCTGTTTTGCCGGGTCAGA
   > - IRES-Cre_TRAP_qPCR_PK_rv: TCCAGGGCGCGAGTTGATAG
@@ -97,6 +93,29 @@
   > - eGFP-L10a_TRAP_qPCR_PK_rv: GTATGGGTACATGGTGGCGTC
 
 - Produced a table in master_08.07.19 to evaluate expression of striatal cell type markers in axon_ip_vs_ub results table. Astrocyte/OPC/microglia rank top.
+
+## 10th July 2019
+
+- Creating merged fastq files for trinity transcriptome generation. Taken 6 fastq files, 2 MB, 2 DS, 2 VS (3/18 month):
+  ```
+  294132
+  295120
+  296108
+  215118
+  216106
+  217189
+  while read s ; do echo $s ; for i in trimmed/*${s}*1.fq.gz ; do echo -n "$i " >> R1.txt ; done ; for j in trimmed/*${s}*2.fq.gz ; do echo -n "$j " >> R2.txt ; done ; done < trinity_input_codes
+  zcat $(cat R1.txt) >> r1.fq.gz
+  zcat $(cat R2.txt) >> r2.fq.gz 
+  ```
+- Also get medium spiny neuron dataset? PCA of highest enriched genes to compare axon samples with astro and msn?
+
+
+
+
+
+
+
 
 - Lab meeting talk about:
   - DESeq2 normalisation vs TPM/RPKM/FPKM
