@@ -105,8 +105,10 @@
   216106
   217189
   while read s ; do echo $s ; for i in trimmed/*${s}*1.fq.gz ; do echo -n "$i " >> R1.txt ; done ; for j in trimmed/*${s}*2.fq.gz ; do echo -n "$j " >> R2.txt ; done ; done < trinity_input_codes
-  zcat $(cat R1.txt) >> r1.fq.gz
-  zcat $(cat R2.txt) >> r2.fq.gz 
+  zcat $(cat R1.txt) >> r1.fq
+  zcat $(cat R2.txt) >> r2.fq
+  pigz *.fq
+  Trinity --seqType fq --max_memory 16G --left r1.fq.gz --right r2.fq.gz --CPU 8 --output trinity_10.07.19
   ```
 - Also get medium spiny neuron dataset? PCA of highest enriched genes to compare axon samples with astro and msn?
 
