@@ -1,3 +1,6 @@
+DPAG fly TRAP 
+Kevin Talbot 'Shatra'
+Jakob Scaber 
 ## 8th July 2019
 - Searched for cre and eGFP sequences in IP sample reads
 - Used Trinity to generate transcript sequences de novo
@@ -112,18 +115,31 @@
   ```
 - Also get medium spiny neuron dataset? PCA of highest enriched genes to compare axon samples with astro and msn?
 
+## 11th July 2019
+- Rebuilding WGCNA for midbrain. Need to assess suitability of batch 3 samples for joining with batch 2 (KW).
+  - Need to decide gene filtering threshold for input
+- Trinity construction had to be run on CGAT cluster. Tried reducing in silico normalisation to 30 from 200 on hudson but still not enough
+
+## 12th July 2019
+- Testing Cufflinks for de novo transcript assembly
+  ![The pipeline on the right is the current recommended cufflinks workflow](http://cole-trapnell-lab.github.io/cufflinks/images/tuxedo_workflow.png)
+  - Input bam files should be sorted. Testing using the 6 bam files sorted on 10th July:
+  ```
+  mkdir sorted
+  while read s ; do echo $s ; for i in ${s}_Aligned.out.bam ; do samtools sort -@ 8 -o sorted/${i}_Aligned_sorted.out.bam $i ; done ; done < ../trinity_input_codes
+  ```
+  
 
 
 
 
 
-
-
-- Lab meeting talk about:
+- Lab meeting discuss:
   - DESeq2 normalisation vs TPM/RPKM/FPKM
-  - Trinity
+  - Trinity/Cufflinks de novo reconstruction to isoform detection
+  - Homer motif analysis
   - WGCNA midbrain
-  - Splicing?
+  - FFN102/Dissociation status
 
 
 
