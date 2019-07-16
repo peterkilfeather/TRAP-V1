@@ -130,7 +130,29 @@ Jakob Scaber
   ```
 ## 13th July 2019
   - Cre and eGFP-L10a primers arrived. Will run primers on the cDNA used for checking DAT/TH enrichment. Testing primers on RNA extracted from midbrain tissue:
-    - **
+## 14th July 2019
+  - **Meeting with RWM, NCR**
+    - THTR: Finish final qPCRs, manuscripts, prepare cover letter:
+      - Why it is ‘fab’
+      - PLOS, not so much about novel in cover letter, but thorough, in depth, good science
+      - But it is the first TRAP profile of PD genetic model
+      - Check AD/Huntingtons TRAP papers? Otherwise this is first genetic neurodegeneration TRAP paper
+  - Filter microglia/macrophage/msn by Friday
+  - Report genes of interest status for grant by Friday:
+    - Synapto-Everything
+    - Dynamin 1,2,3
+    - Micu1
+    - Calcium channels
+    - Kif1a/b
+    - Sortin/Nexin1
+  - Find examples of S100b -ve astrocytes to explain depletion of S100B in axon-TRAP samples
+  - Find out how many cell soma enriched transcripts are found in Sakers Aldh1l1 TRAP dataset (particularly Slc6a3)
+  - For future, controls for ectopic Cre expression should be:
+    - Take 1 whole cortex from GFP+ve mouse and run TRAP
+    - Repeat 4x striata from GFP-ve mice
+  - Produce confident Venn diagram of axon/mb by Friday
+  - Caleb wants to know axonally translating TFs: Make list
+  - **Next meeting Friday afternoon. Time TBC**
 
 
 
