@@ -133,6 +133,7 @@ Jakob Scaber
 ## 14th July 2019
   - **Meeting with RWM, NCR**
     - THTR: Finish final qPCRs, manuscripts, prepare cover letter:
+      - Triplication RNA quantified with ribogreen. All < 1ng/ul. Going to run SMART-SEQ2 with 2.3ul of RNA regardless of concentration (not diluting samples before amplification).
       - Why it is ‘fab’
       - PLOS, not so much about novel in cover letter, but thorough, in depth, good science
       - But it is the first TRAP profile of PD genetic model
@@ -154,7 +155,8 @@ Jakob Scaber
   - Caleb wants to know axonally translating TFs: Make list
   - **Next meeting Friday afternoon. Time TBC**
 
-
+## 18th July 2019
+- Processing MSN, 
 
 
 
