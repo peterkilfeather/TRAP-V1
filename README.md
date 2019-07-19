@@ -155,8 +155,11 @@ Jakob Scaber
   - Caleb wants to know axonally translating TFs: Make list
   - **Next meeting Friday afternoon. Time TBC**
 
-## 18th July 2019
-- Processing MSN, 
+## 18th/19th July 2019
+- Not a clear enrichment of MSN markers:
+  ![](https://github.com/langkilfeather/pk_trap/blob/master/msn_markers.png)
+- Enrichment of cholinergic interneuron markers:
+  ![](https://github.com/langkilfeather/pk_trap/blob/master/cholinergic_markers.png)
 
 
 
