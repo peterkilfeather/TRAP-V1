@@ -162,6 +162,8 @@ Jakob Scaber
   ![](https://github.com/langkilfeather/pk_trap/blob/master/cholinergic_markers.png)
 - Enrichment of predominantly tissue macrophage markers. Important microglia markers are not enriched. Markers taken from [Barres paper]([Microglia and macrophages in brain homeostasis and disease, 2017](https://www.nature.com/articles/nri.2017.125#microglia-and-brain-macrophages))
   ![](https://github.com/langkilfeather/pk_trap/blob/master/microglia_macrophage_markers.png)
+- Meningeal and choroid macrophages:
+![](https://github.com/langkilfeather/pk_trap/blob/master/tissue_macrophage_markers.png)
 
 
 
