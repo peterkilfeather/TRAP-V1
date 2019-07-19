@@ -165,8 +165,33 @@ Jakob Scaber
 - Meningeal and choroid macrophages:
 ![](https://github.com/langkilfeather/pk_trap/blob/master/tissue_macrophage_markers.png)
 
+- Using McKeever, 2017 [Cholinergic neuron gene expression differences captured by translational profiling in a mouse model of Alzheimer's disease.](https://www.ncbi.nlm.nih.gov/pubmed/28628896):
+  ```
+  awk 'FS="\t", OFS="\t" { gsub("ftp.sra.ebi.ac.uk", "era-fasp@fasp.sra.ebi.ac.uk:"); print }' PRJNA387000.txt | cut -f9 | awk -F ";" 'OFS="\n" {print $1, $2}' | awk NF | awk 'NR > 1, OFS="\n" {print "ascp -QT -l 20m -P33001 -i $HOME/.aspera/connect/etc/asperaweb_id_dsa.openssh" " " $1 " ."}' > download.txt
+  cat download.txt | parallel " {} "
+  ```
+  - Fastqc/Multiqc:
+    ```
+    mkdir qc
+    fastqc -t 8 -o qc *
+    multiqc -o qc qc/
+    ```
+  - Kallisto: `for i in *1.fastq.gz ; do kallisto quant -i /references/Mus_musculus.GRCm38.cdna.ncrna.ERCC92.idx -o kallisto/${i%.fastq.gz} -t 8 --bias $i ${i%1.fastq.gz}2.fastq.gz ; done`
 
-
+- Using Ayata, 2018 to examine microglia/macrophage involvement: [Epigenetic regulation of brain region-specific microglia clearance activity](https://www.nature.com/articles/s41593-018-0192-3):
+  - Subsetted to remove single nuclei files
+  -  Added ip/input and region columns
+  ```
+  awk 'FS="\t", OFS="\t" { gsub("ftp.sra.ebi.ac.uk", "era-fasp@fasp.sra.ebi.ac.uk:"); print }' PRJNA387000.txt | cut -f9 | awk -F ";" 'OFS="\n" {print $1, $2}' | awk NF | awk 'NR > 1, OFS="\n" {print "ascp -QT -l 20m -P33001 -i $HOME/.aspera/connect/etc/asperaweb_id_dsa.openssh" " " $1 " ."}' > download.txt
+  cat download.txt | parallel " {} "
+  ```
+  - Fastqc/Multiqc:
+  ```
+    mkdir qc
+    fastqc -t 8 -o qc *
+    multiqc -o qc qc/
+    ```
+  - Kallisto: `for i in *1.fastq.gz ; do kallisto quant -i /references/Mus_musculus.GRCm38.cdna.ncrna.ERCC92.idx -o kallisto/${i%.fastq.gz} -t 8 --bias $i --single -l 200 -s 30 $i ; done` Single-end: Alignment %:
 
 
 
