@@ -178,7 +178,7 @@ Jakob Scaber
     ```
   - Kallisto: `for i in *1.fastq.gz ; do kallisto quant -i /references/Mus_musculus.GRCm38.cdna.ncrna.ERCC92.idx -o kallisto/${i%.fastq.gz} -t 8 --bias $i ${i%1.fastq.gz}2.fastq.gz ; done`
 
-- Using Ayata, 2018 to examine microglia/macrophage involvement: [Epigenetic regulation of brain region-specific microglia clearance activity](https://www.nature.com/articles/s41593-018-0192-3):
+- Ayata, 2018 to examine microglia involvement: [Epigenetic regulation of brain region-specific microglia clearance activity](https://www.nature.com/articles/s41593-018-0192-3):
   - Subsetted to remove single nuclei files
   -  Added ip/input and region columns
   ```
@@ -193,6 +193,8 @@ Jakob Scaber
     ```
   - Kallisto: `for i in *1.fastq.gz ; do kallisto quant -i /references/Mus_musculus.GRCm38.cdna.ncrna.ERCC92.idx -o kallisto/${i%.fastq.gz} -t 8 --bias $i --single -l 200 -s 30 $i ; done` Single-end: Alignment %:
 
+- Bone marrow derived macrophage ribotag. [Jackson, 2018](https://www.nature.com/articles/s41586-018-0794-7?WT.feed_name=subjects_translation#data-availability)
+- Interesting microglia paper, also using IgG control ribotag. Check this dataset for the amount of enriched transcripts in IgG control. [Haimon, 2018](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114001)
 
 
 
