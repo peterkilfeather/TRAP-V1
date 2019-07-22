@@ -1,3 +1,6 @@
+DPAG fly TRAP 
+Kevin Talbot 'Shatra'
+Jakob Scaber 
 ## 8th July 2019
 - Searched for cre and eGFP sequences in IP sample reads
 - Used Trinity to generate transcript sequences de novo
@@ -112,18 +115,106 @@
   ```
 - Also get medium spiny neuron dataset? PCA of highest enriched genes to compare axon samples with astro and msn?
 
+## 11th July 2019
+- Rebuilding WGCNA for midbrain. Need to assess suitability of batch 3 samples for joining with batch 2 (KW).
+  - Need to decide gene filtering threshold for input
+- Trinity construction had to be run on CGAT cluster. Tried reducing in silico normalisation to 30 from 200 on hudson but still not enough
+
+## 12th July 2019
+- Testing Cufflinks for de novo transcript assembly
+  ![The pipeline on the right is the current recommended cufflinks workflow](http://cole-trapnell-lab.github.io/cufflinks/images/tuxedo_workflow.png)
+  - Input bam files should be sorted. Testing using the 6 bam files sorted on 10th July:
+  ```
+  mkdir sorted
+  while read s ; do echo $s ; for i in ${s}_Aligned.out.bam ; do samtools sort -@ 8 -o sorted/${i}_Aligned_sorted.out.bam $i ; done ; done < ../trinity_input_codes
+  ```
+## 13th July 2019
+  - Cre and eGFP-L10a primers arrived. Will run primers on the cDNA used for checking DAT/TH enrichment. Testing primers on RNA extracted from midbrain tissue:
+## 14th July 2019
+  - **Meeting with RWM, NCR**
+    - THTR: Finish final qPCRs, manuscripts, prepare cover letter:
+      - Triplication RNA quantified with ribogreen. All < 1ng/ul. Going to run SMART-SEQ2 with 2.3ul of RNA regardless of concentration (not diluting samples before amplification).
+      - Why it is ‘fab’
+      - PLOS, not so much about novel in cover letter, but thorough, in depth, good science
+      - But it is the first TRAP profile of PD genetic model
+      - Check AD/Huntingtons TRAP papers? Otherwise this is first genetic neurodegeneration TRAP paper
+  - Filter microglia/macrophage/msn by Friday
+  - Report genes of interest status for grant by Friday:
+    - Synapto-Everything
+    - Dynamin 1,2,3
+    - Micu1
+    - Calcium channels
+    - Kif1a/b
+    - Sortin/Nexin1
+  - Find examples of S100b -ve astrocytes to explain depletion of S100B in axon-TRAP samples
+  - Find out how many cell soma enriched transcripts are found in Sakers Aldh1l1 TRAP dataset (particularly Slc6a3)
+  - For future, controls for ectopic Cre expression should be:
+    - Take 1 whole cortex from GFP+ve mouse and run TRAP
+    - Repeat 4x striata from GFP-ve mice
+  - Produce confident Venn diagram of axon/mb by Friday
+  - Caleb wants to know axonally translating TFs: Make list
+  - **Next meeting Friday afternoon. Time TBC**
+
+## 18th/19th July 2019
+- Not a clear enrichment of MSN markers:
+  ![](https://github.com/langkilfeather/pk_trap/blob/master/msn_markers.png)
+- Enrichment of cholinergic interneuron markers:
+  ![](https://github.com/langkilfeather/pk_trap/blob/master/cholinergic_markers.png)
+- Enrichment of predominantly tissue macrophage markers. Important microglia markers are not enriched. Markers taken from [Barres paper]([Microglia and macrophages in brain homeostasis and disease, 2017](https://www.nature.com/articles/nri.2017.125#microglia-and-brain-macrophages))
+  ![](https://github.com/langkilfeather/pk_trap/blob/master/microglia_macrophage_markers.png)
+- Meningeal and choroid macrophages:
+![](https://github.com/langkilfeather/pk_trap/blob/master/tissue_macrophage_markers.png)
+
+- Using McKeever, 2017 [Cholinergic neuron gene expression differences captured by translational profiling in a mouse model of Alzheimer's disease.](https://www.ncbi.nlm.nih.gov/pubmed/28628896):
+  ```
+  awk 'FS="\t", OFS="\t" { gsub("ftp.sra.ebi.ac.uk", "era-fasp@fasp.sra.ebi.ac.uk:"); print }' PRJNA387000.txt | cut -f9 | awk -F ";" 'OFS="\n" {print $1, $2}' | awk NF | awk 'NR > 1, OFS="\n" {print "ascp -QT -l 20m -P33001 -i $HOME/.aspera/connect/etc/asperaweb_id_dsa.openssh" " " $1 " ."}' > download.txt
+  cat download.txt | parallel " {} "
+  ```
+  - Fastqc/Multiqc:
+    ```
+    mkdir qc
+    fastqc -t 8 -o qc *
+    multiqc -o qc qc/
+    ```
+  - Kallisto: `for i in *1.fastq.gz ; do kallisto quant -i /references/Mus_musculus.GRCm38.cdna.ncrna.ERCC92.idx -o kallisto/${i%.fastq.gz} -t 8 --bias $i ${i%1.fastq.gz}2.fastq.gz ; done`
+
+- Ayata, 2018 to examine microglia involvement: [Epigenetic regulation of brain region-specific microglia clearance activity](https://www.nature.com/articles/s41593-018-0192-3):
+  - Subsetted to remove single nuclei files
+  -  Added ip/input and region columns
+  ```
+  awk 'FS="\t", OFS="\t" { gsub("ftp.sra.ebi.ac.uk", "era-fasp@fasp.sra.ebi.ac.uk:"); print }' PRJNA387000.txt | cut -f9 | awk -F ";" 'OFS="\n" {print $1, $2}' | awk NF | awk 'NR > 1, OFS="\n" {print "ascp -QT -l 20m -P33001 -i $HOME/.aspera/connect/etc/asperaweb_id_dsa.openssh" " " $1 " ."}' > download.txt
+  cat download.txt | parallel " {} "
+  ```
+  - Fastqc/Multiqc:
+  ```
+    mkdir qc
+    fastqc -t 8 -o qc *
+    multiqc -o qc qc/
+    ```
+  - Kallisto: `for i in *1.fastq.gz ; do kallisto quant -i /references/Mus_musculus.GRCm38.cdna.ncrna.ERCC92.idx -o kallisto/${i%.fastq.gz} -t 8 --bias $i --single -l 200 -s 30 $i ; done` Single-end: Alignment %:
+
+- Bone marrow derived macrophage ribotag. [Jackson, 2018](https://www.nature.com/articles/s41586-018-0794-7?WT.feed_name=subjects_translation#data-availability)
+- Interesting microglia paper, also using IgG control ribotag. Check this dataset for the amount of enriched transcripts in IgG control. [Haimon, 2018](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114001)
+
+##20th/21st July 2019
+- Pipelined EBI/aspera and started making snakemake file for fastqc/multiqc/kallisto
+- Sakers astro data does not have enough depth to detect Slc6a3, to see if it was enriched in their dataset. The [Boisvert astrocyte aging dataset](https://www.cell.com/cell-reports/pdf/S2211-1247(17)31848-X.pdf) did different regions (visual cortex, motor cortex, spinal cord, hypothalamus, cerebellum) so testing the hypothalamus samples to check for Slc6a3 (they have 25-60 million reads per sample).
+- There is Th enrichment in the McKeever cholinergic dataset, but no Slc6a3: Th expression is confirmed in GABAergic interneurons [paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4465985/)
+- 6000 genes are enriched in the cholinergic dataset: 2000/3800 axonal genes are in common. 2745/4000 MB enriched genes are in common with cholinergic.
+- 433 genes are enriched in astros, cholinergic, and midbrain DA: Should they be returned to the axon-enriched list? I think so
+- 940 genes common between macrophage ribotag and axon trap. 
+- Send RWM/NCR email with different venn diagram versions. Filtering cholinergic genes has the issue of including neuronal genes that could be shared between all neuron types. ![Suggested venn diagram](https://github.com/langkilfeather/pk_trap/blob/master/axon_enriched_astro_macro_filter.png)
 
 
 
 
-
-
-
-- Lab meeting talk about:
+- Lab meeting discuss:
   - DESeq2 normalisation vs TPM/RPKM/FPKM
-  - Trinity
+  - Trinity/Cufflinks de novo reconstruction to isoform detection
+  - Homer motif analysis
   - WGCNA midbrain
-  - Splicing?
+  - Nanopore
+  - FFN102/Dissociation status
 
 
 
