@@ -196,7 +196,7 @@ Jakob Scaber
 - Bone marrow derived macrophage ribotag. [Jackson, 2018](https://www.nature.com/articles/s41586-018-0794-7?WT.feed_name=subjects_translation#data-availability)
 - Interesting microglia paper, also using IgG control ribotag. Check this dataset for the amount of enriched transcripts in IgG control. [Haimon, 2018](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114001)
 
-##20th/21st July 2019
+## 20th/21st July 2019
 - Pipelined EBI/aspera and started making snakemake file for fastqc/multiqc/kallisto
 - Sakers astro data does not have enough depth to detect Slc6a3, to see if it was enriched in their dataset. The [Boisvert astrocyte aging dataset](https://www.cell.com/cell-reports/pdf/S2211-1247(17)31848-X.pdf) did different regions (visual cortex, motor cortex, spinal cord, hypothalamus, cerebellum) so testing the hypothalamus samples to check for Slc6a3 (they have 25-60 million reads per sample).
 - There is Th enrichment in the McKeever cholinergic dataset, but no Slc6a3: Th expression is confirmed in GABAergic interneurons [paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4465985/)
@@ -205,6 +205,12 @@ Jakob Scaber
 - 940 genes common between macrophage ribotag and axon trap. 
 - Send RWM/NCR email with different venn diagram versions. Filtering cholinergic genes has the issue of including neuronal genes that could be shared between all neuron types. ![Suggested venn diagram](https://github.com/langkilfeather/pk_trap/blob/master/axon_enriched_astro_macro_filter.png)
 
+## 23rd July 2019
+- Made changes to boxplot multi code for RWM. Made borders and text bolder
+- Reading [Cuffdiff 2 paper](https://www.nature.com/articles/nbt.2450#ref28):
+  - Count uncertainty: Up to 50% of reads map ambiguously to different transcripts because in higher eukaryotes, alternative isoforms share large amount of sequence and many genes have paralogs with similarity. Therefore transcript counts are estimates.
+  - Count overdispersion: Although we use a Poisson model to estimate variability, the variability in count data between replicates is more than what we would expect in a Poisson distribution. This overdispersion increases with expression [(Anders, Huber, 2010)](http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?holding=npg&cmd=Retrieve&db=PubMed&list_uids=20979621&dopt=Abstract) and Anders proposed using the negative binomial distribution to control for it.
+  - Cuffdiff 2 estimate uncertainty by calculating the confidence that a fragment is correctly assigned to the transcript: if the transcript has more shared exons with other isoforms, there will be lower confidence. Similarly if there are only a few assigned fragments, there will be low confidence. This confidence is summarised in a 'beta distribution' and the overdispersion of counts is modelled with the negative binomial distribution, and it 'mixes them together', resulting in a beta negative binomial distribution. ![](https://www.nature.com/articles/nbt.2450/figures/2)
 
 
 
