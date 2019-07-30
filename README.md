@@ -214,15 +214,12 @@ Jakob Scaber
 - Kruskal-Wallis tests that a continuous variable has the same mean across multiple groups [Peter Langfelder blog](https://peterlangfelder.com/2018/11/25/working-with-categorical-variables/)
 - Need to get WGCNA code simpler and with **clear gene names**
 
+## 30th July 2019
+-  Following lab meeting, priorities are:
+  - Finish THTR paper:
+    - qPCR for Cited2, Gfra1, Id2, Foxp2, Kitg showed only Foxp2 as significantly differentially expressed between ctrl and triplication. Emailed Jimena and she supplied the list of triplication DEGs that are Foxo3 targets ![](https://github.com/langkilfeather/pk_trap/blob/master/foxo3_trip_rnaseq.png). Ttr and Nnat are at the top of list when considering basemean of expression. Ordered primers based on Origene sequences for Ttr, Nnat, Slc39a7 and Cadm1. Depending on Ct values from previous qPCRs, dilute cDNA 1/2 or 1/4 to have enough for testing.
+  - Get direct RNA seq going:
+    - Yesterday extracted RNA from entire mouse brain (REL126.3a, 4 month old female). Followed [ONT protocol for extraction](https://github.com/langkilfeather/pk_trap/blob/master/Extracting%20human%20RNA%20with%20TRIzol.pdf), homogenising 8 pieces each in 500 ul trizol, using upstairs TC centrifuge at 4 degrees for 15 ml falcon and 5 ml eppendorfs. Resuspended pellet in 100 ul TE and measured 280 ug total using Qubit. DRS protocol requires 9 ul 500 ng polyA. Carika Weldon says they never do polyA enrichment, so needed to precipitate the RNA and resuspend in 9 ul. Followed [Barrick lab protocol](http://barricklab.org/twiki/bin/view/Lab/ProtocolsEthanolPrecipitation) using ~120 ug RNA and used 500 uL ethanol wash volume and used vacumn to aspirate supernatant (did not use acrylamide carrier, as already have very visible pellet). Kept supernatant after ethanol-acetate addition and spin in case some had not been precipitated (put this in the -20). After 1 wash, heat block 37 degrees for 2.5 minutes and resuspension in 10 ul, concentration was 9.14 ug/ul ![](https://github.com/langkilfeather/pk_trap/blob/master/drs_rna_sample_1in10_prelibraryprep.jpg)! Checking RIN on bioanalyser before preparing library.
+  - Dissociation
+ 
 
-- Lab meeting discuss:
-  - DESeq2 normalisation vs TPM/RPKM/FPKM
-  - Trinity/Cufflinks de novo reconstruction to isoform detection
-  - Homer motif analysis
-  - WGCNA midbrain
-  - Nanopore
-  - FFN102/Dissociation status
-
-
-
-[Data Managment plan](https://github.com/sr320/LabDocs/wiki/Data-Management)
