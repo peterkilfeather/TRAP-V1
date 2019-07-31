@@ -2,8 +2,14 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Scaber 
 ## 31st July 2019
-- Used qubit HS DNA kit to measure RNA-DNA hybrid as recommended in the RNA002 protocol. Measured 4 ug in 20 ul. Spoke to ONT, advised to only load 1 ug. Kit preparation and flowcell is designed for around 200 ng loading. Over course of 2 hours, number of inactive pores increased and decided to stop, flush and reload with 200 ng. **Note: The priming port cover controls two valves and these valves only open if the cover is completely opened. Also, the waste chamber holds 1.9 ml: If a second library is to be added, waste needs to be removed before adding.** Flushing and reloading lost a large number of pores. Now assessing the quality of reads in the first and second runs. After discussion with ONT, in future, recommed to perform polyA selection before library prep to just carry forward 500ng + poly A RNA, instead of 100 ug total RNA containing an unknown amount of poly A RNA. Now waiting for Sera-mag dynabeads and deciding on protocol.
-
+- Used qubit HS DNA kit to measure RNA-DNA hybrid as recommended in the RNA002 protocol. Measured 4 ug in 20 ul. Spoke to ONT, advised to only load 1 ug. Kit preparation and flowcell is designed for around 200 ng loading. Over course of 2 hours, number of inactive pores increased and decided to stop, flush and reload with 200 ng. **Note: The priming port cover controls two valves and these valves only open if the cover is completely opened. Also, the waste chamber holds 1.9 ml: If a second library is to be added, waste needs to be removed before adding.** Flushing and reloading lost a large number of pores. Now assessing the quality of reads in the first and second runs. After discussion with ONT, in future, recommed to perform polyA selection before library prep to just carry forward 500ng + poly A RNA, instead of 100 ug total RNA containing an unknown amount of poly A RNA. 
+- Now waiting for Sera-mag dynabeads and deciding on whether to follow [Cronn protocol](https://openwetware.org/wiki/MRNA_Prep) or [Dynabead](https://assets.thermofisher.com/TFS-Assets/LSG/manuals/dynabeads_oligo_dT_25_man.pdf). The beads appear to have the same binding capacity (1 mg binds 1-2 ug mRNA) and use the same buffers:
+  - Binding buffer: 20 mM Tris-HCl, pH 7.5, 1.0 M LiCl, 2 mM EDTA
+  - Wash buffer: 10 mM Tris-HCl, pH 7.5, 0.15 M LiCl, 1 mM EDTA  10 mM Tris-HCl, pH 7.5
+  - Reconditioning solution: 0.1 M NaOH 
+  - Storage Buffer Oligo (dT)25: 250 mM Tris-HCl, pH 7.5, 20 mM EDTA, 0.1% Tween®-20, 0.02% sodium azide
+ - [Dynabeads website](https://www.thermofisher.com/uk/en/home/references/protocols/nucleic-acid-purification-and-analysis/mrna-protocols/dynabeads-oligo-dt-25-61002.html) discusses reuse of the beads on the same sample and other samples.
+ 
 ## 30th July 2019
 - Reversing order of notes (newest first)
 -  Following lab meeting, priorities are:
