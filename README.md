@@ -1,6 +1,16 @@
 DPAG fly TRAP 
 Kevin Talbot 'Shatra'
-Jakob Scaber 
+Jakob Sca
+  - See minion repo
+## 30th July 2019
+- Reversing order of notes (newest first)
+-  Following lab meeting, priorities are:
+  - Finish THTR paper:
+    - qPCR for Cited2, Gfra1, Id2, Foxp2, Kitg showed only Foxp2 as significantly differentially expressed between ctrl and triplication. Emailed Jimena and she supplied the list of triplication DEGs that are Foxo3 targets ![](https://github.com/langkilfeather/pk_trap/blob/master/foxo3_trip_rnaseq.png). Ttr and Nnat are at the top of list when considering basemean of expression. Ordered primers based on Origene sequences for Ttr, Nnat, Slc39a7 and Cadm1. Depending on Ct values from previous qPCRs, dilute cDNA 1/2 or 1/4 to have enough for testing.
+  - Get direct RNA seq going:
+    - See minion repo
+  - Dissociation
+
 ## 8th July 2019
 - Searched for cre and eGFP sequences in IP sample reads
 - Used Trinity to generate transcript sequences de novo
@@ -196,7 +206,7 @@ Jakob Scaber
 - Bone marrow derived macrophage ribotag. [Jackson, 2018](https://www.nature.com/articles/s41586-018-0794-7?WT.feed_name=subjects_translation#data-availability)
 - Interesting microglia paper, also using IgG control ribotag. Check this dataset for the amount of enriched transcripts in IgG control. [Haimon, 2018](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE114001)
 
-##20th/21st July 2019
+## 20th/21st July 2019
 - Pipelined EBI/aspera and started making snakemake file for fastqc/multiqc/kallisto
 - Sakers astro data does not have enough depth to detect Slc6a3, to see if it was enriched in their dataset. The [Boisvert astrocyte aging dataset](https://www.cell.com/cell-reports/pdf/S2211-1247(17)31848-X.pdf) did different regions (visual cortex, motor cortex, spinal cord, hypothalamus, cerebellum) so testing the hypothalamus samples to check for Slc6a3 (they have 25-60 million reads per sample).
 - There is Th enrichment in the McKeever cholinergic dataset, but no Slc6a3: Th expression is confirmed in GABAergic interneurons [paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4465985/)
@@ -205,17 +215,15 @@ Jakob Scaber
 - 940 genes common between macrophage ribotag and axon trap. 
 - Send RWM/NCR email with different venn diagram versions. Filtering cholinergic genes has the issue of including neuronal genes that could be shared between all neuron types. ![Suggested venn diagram](https://github.com/langkilfeather/pk_trap/blob/master/axon_enriched_astro_macro_filter.png)
 
+## 23rd July 2019
+- Made changes to boxplot multi code for RWM. Made borders and text bolder
+- Reading [Cuffdiff 2 paper](https://www.nature.com/articles/nbt.2450#ref28):
+  - Count uncertainty: Up to 50% of reads map ambiguously to different transcripts because in higher eukaryotes, alternative isoforms share large amount of sequence and many genes have paralogs with similarity. Therefore transcript counts are estimates.
+  - Count overdispersion: Although we use a Poisson model to estimate variability, the variability in count data between replicates is more than what we would expect in a Poisson distribution. This overdispersion increases with expression [(Anders, Huber, 2010)](http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?holding=npg&cmd=Retrieve&db=PubMed&list_uids=20979621&dopt=Abstract) and Anders proposed using the negative binomial distribution to control for it.
+  - Cuffdiff 2 estimate uncertainty by calculating the confidence that a fragment is correctly assigned to the transcript: if the transcript has more shared exons with other isoforms, there will be lower confidence. Similarly if there are only a few assigned fragments, there will be low confidence. This confidence is summarised in a 'beta distribution' and the overdispersion of counts is modelled with the negative binomial distribution, and it 'mixes them together', resulting in a beta negative binomial distribution.
+- Kruskal-Wallis tests that a continuous variable has the same mean across multiple groups [Peter Langfelder blog](https://peterlangfelder.com/2018/11/25/working-with-categorical-variables/)
+- Need to get WGCNA code simpler and with **clear gene names**
 
 
+ 
 
-- Lab meeting discuss:
-  - DESeq2 normalisation vs TPM/RPKM/FPKM
-  - Trinity/Cufflinks de novo reconstruction to isoform detection
-  - Homer motif analysis
-  - WGCNA midbrain
-  - Nanopore
-  - FFN102/Dissociation status
-
-
-
-[Data Managment plan](https://github.com/sr320/LabDocs/wiki/Data-Management)
