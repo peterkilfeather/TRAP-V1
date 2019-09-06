@@ -1,0 +1,1781 @@
+---
+title: "R Notebook"
+output:
+  html_notebook: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+**Axon and Midbrain IP/Input Comparisons**
+
+Load packages
+```{r setup, results='hide'}
+library(DESeq2)
+library(tximport)
+library(GenomicFeatures)
+library(biomaRt)
+library(reshape)
+library(reshape2)
+library(ggplot2)
+library(pheatmap)
+#library(scater)
+library(RColorBrewer)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(RUVSeq)
+library(IHW)
+library(Biobase)
+library(preprocessCore)
+library(EDASeq)
+library(fgsea)
+library(ggbeeswarm)
+library(ggsci)
+library(tidyverse)
+library(EDASeq)
+library(WGCNA)
+library(rhdf5)
+library(ggpubr)
+library(gridExtra)
+library(grid)
+library(pcaExplorer)
+library(ggrepel)
+source("objects/SampleNetwork_1.06.r")
+source("/zfs/analysis/r_functions/deseq2_function_20190903.R")
+source("/zfs/analysis/r_functions/blinded_counts_20190906.R")
+source("/zfs/analysis/r_functions/density_plot_20190905.R")
+source("/zfs/analysis/r_functions/dopa_counts_20190906.R")
+source("/zfs/analysis/r_functions/alignment_plot_20190906.R")
+
+dir.create(file.path('.', 'previous'), showWarnings = F)
+output_dir <- file.path('output',paste('deseq', Sys.Date(), format(Sys.time(), "%H:%M"), sep = '_'))
+dir.create(output_dir, recursive = T)
+base_dir <- getwd()
+knitr::opts_knit$set(root.dir = output_dir)
+
+kallisto_path <- file.path("/zfs/analysis/pk_trap/trap_kall_protcod_ercc/") #Ensembl + ERCC + hSNCA
+
+load(file.path(base_dir, 'objects/anno_mouse.RData'))
+load(file.path(base_dir, 'objects/tx2gene_mouse_ercc.RData'))
+tx2gene = tx2gene_ERCC
+
+h5closeAll()
+
+skip_pcaExplorer = T
+```
+
+**Create sample metadata tibbles**
+```{r}
+p_pseudoaligned <- read.csv(file.path(base_dir, 'metadata/p_pseudoaligned_trap_20190905.txt'), sep = '\t', header = T) %>%
+  as_tibble()
+
+sample_metadata <- read.csv(file.path(base_dir, 'metadata/sample_metadata_110719.csv'), header = T) %>%
+  as_tibble() %>%
+  inner_join(p_pseudoaligned, by = c("sample_code" = "sample")) %>%
+  mutate(align_rank=rank(p_pseudoaligned)/length(p_pseudoaligned))
+
+sample_metadata_kw_batch_2 <- sample_metadata %>% 
+  as_tibble() %>%
+  filter(ip_pool == 'n' & batch_trap == 'b2')
+
+sample_metadata_pk_batch_1_striatum <- sample_metadata %>% 
+  as_tibble() %>%
+  filter(ip_pool == 'n' & batch_trap == 'b3' & region != 'mb')
+```
+
+**Global parameters**
+```{r}
+alpha = 0.01
+res_lfc = 0 #lfc threshold for DESeq2 results functions
+lfc = 0 #lfc threshold for post-results filtering genes
+replicate_replace = Inf
+```
+
+Load annotation database and mouse ERCC92 tx2gene
+```{r}
+# txdb <- makeTxDbFromGFF('/zfs/referenceGenomes/mouse/Mus_musculus.GRCm38.96.gtf')
+# k <- keys(txdb, keytype = "TXNAME")
+# tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
+# ERCC92 <- read.csv("ERCC92_names.txt", header = F)
+# ERCC92$V2 <- ERCC92$V1
+# colnames(ERCC92) <- c("TXNAME", "GENEID")
+# tx2gene_ERCC <- bind_rows(tx2gene, ERCC92)
+```
+
+*Create functions for repeated code*
+```{r}
+#run_deseq <- function() {
+  #subset sample metadata
+  sample_metadata <- sample_metadata_all %>% data.frame() %>%
+                    as_tibble() %>% filter(eval(parse(text=metadata_filter)))
+  assign(paste('sample_metadata', name, sep = '_'), envir = .GlobalEnv, sample_metadata)
+
+  #create list of kallisto input files
+  files <- file.path(kallisto_path, sample_metadata$sample_code, "abundance.h5")
+  names(files) <- sample_metadata$sample_name
+  
+  #import kallisto files
+  txi <- tximport(files, type = "kallisto", tx2gene = tx2gene_ERCC, ignoreTxVersion = T)
+  
+  #create deseq2 object
+  dds <- DESeqDataSetFromTximport(txi, colData = sample_metadata, design = design)
+  
+  #relevel contrast
+  dds[[paste(reference_column)]] <- relevel(dds[[paste(reference_column)]], ref = reference_level)
+  
+  #filter low counts
+  keep_feature <- rowMeans(counts(dds)) >= min_counts
+  dds_removed <- dds[!keep_feature, ]
+  dds <- dds[keep_feature, ]
+  paste('Dimensions of sample data: ', dim(dds))
+  
+  #find ERCC spike-ins
+  spikes <- rownames(dds)[grep("^ERCC", rownames(dds))]
+  
+  #calculate XYZ
+  dds <- DESeq(dds, minReplicatesForReplace = replicate_replace)
+  counts <- counts(dds, normalized = T)
+  vsd <- DESeq2::vst(dds, blind = F)
+  assign(paste('dds', name, sep = '_'), envir = .GlobalEnv, dds)
+  assign(paste('dds_removed', name, sep = '_'), envir = .GlobalEnv, dds_removed)
+  assign(paste('counts', name, sep = '_'), envir = .GlobalEnv, counts)
+  assign(paste('vsd', name, sep = '_'), envir = .GlobalEnv, vsd)
+
+  #summary(normalizationFactors(dds))
+  
+  #perform RUVseq without DESeq2 normalisation
+  eda_set <- newSeqExpressionSet(round(counts(dds, normalized = F)), phenoData = data.frame(sample_metadata, row.names=colnames(counts)))
+  EDASeq::plotRLE(eda_set, outline = F, ylim = c(-3, 3), col = colors()[sample_metadata$ip])
+  
+  #perform RUVseq with DESeq2 normalisation
+  eda_set <- newSeqExpressionSet(round(counts(dds, normalized = T)), phenoData = data.frame(sample_metadata, row.names=colnames(counts)))
+  EDASeq::plotRLE(eda_set, outline = F, ylim = c(-3, 3), col = colors()[sample_metadata$ip])
+
+  # eda_set1 <- betweenLaneNormalization(eda_set, which="full")
+  # plotRLE(eda_set1, outline = F, ylim = c(-3, 3), col = colors()[sample_metadata$ip])
+  
+  # eda_set1 <- RUVg(eda_set, spikes, k=1)
+  # pData(eda_set1)
+  # plotRLE(eda_set1, outline = F, ylim = c(-3, 3), col = colors()[sample_metadata$ip])
+
+  #create contrast variable
+  contrast_name <- tail(resultsNames(dds), n=1)
+  contrast_split <- strsplit(contrast_name, '_')
+  contrast <- c(contrast_split[[1]][1], contrast_split[[1]][2], contrast_split[[1]][4])
+  
+  #calculate result
+  res <- results(dds, alpha = alpha, lfcThreshold = res_lfc, contrast = contrast)
+  assign(paste('res', name, sep = '_'), envir = .GlobalEnv, res)
+  summary(res)
+  
+  #perform apeglm shrinkage
+  res_shrunken <- lfcShrink(dds, coef = tail(resultsNames(dds), n=1), type = "apeglm", 
+                            lfcThreshold = res_lfc, res = res, quiet = T)
+  DESeq2::plotMA(res_shrunken, ylim=c(-5,5))
+  assign(paste('res_shrunken', name, sep = '_'), envir = .GlobalEnv, res_shrunken)
+  
+  #add independent hypothesis weighting using basemean
+  deRes <- as.data.frame(res)
+  ihwRes <- ihw(pvalue ~ baseMean,  data = deRes, alpha = alpha)
+  resIHW <- results(dds, filterFun=ihw, alpha = alpha, lfcThreshold = res_lfc, 
+                    contrast = contrast)
+  assign(paste('resIHW', name, sep = '_'), envir = .GlobalEnv, resIHW)
+  
+  res = resIHW
+  
+  #put results QC in (pvalue rejections, basemeans)
+
+  #create results output object
+  res_tb <- res %>%
+    data.frame() %>%
+    rownames_to_column(var="gene") %>% 
+    as_tibble() %>%
+    na.omit()
+
+  sig <- res_tb %>%
+    filter(padj < alpha & abs(log2FoldChange) > lfc)
+  sig <- merge(as.data.frame(sig), anno, by.x = c("gene"), by.y = c("Gene.stable.ID"))
+  sig <- merge(as.data.frame(sig), as.data.frame(counts(dds, normalized=TRUE)), 
+               by.x = c("gene"), by.y = "row.names", sort=F)
+  assign(paste('sig', name, sep = '_'), envir = .GlobalEnv, sig)
+  
+  res_tb <- merge(as.data.frame(res_tb), anno, by.x = c("gene"), by.y = c("Gene.stable.ID"))
+  res_tb <- merge(as.data.frame(res_tb), as.data.frame(counts(dds, normalized=TRUE)), 
+                  by.x = c("gene"), by.y = "row.names", sort=F)
+  res_tb$padj[res_tb$padj == 0] <- .Machine$double.xmin #replacing absolute 0 values with smallest possible double for GSEA rank calculation
+  assign(paste('res_output', name, sep = '_'), envir = .GlobalEnv, res_tb)
+  
+  res_tb$fcsign <- sign(res_tb$log2FoldChange)
+  res_tb$logP <- -log10(res_tb$padj)
+  res_tb$metric <- res_tb$logP/res_tb$fcsign
+  res_tb <- res_tb %>% unique() %>% na.omit() %>% arrange(desc(metric))
+  rank <- res_tb[,c("HGNC.symbol", "metric")]
+  assign(paste('rank', name, sep = '_'), envir = .GlobalEnv, rank)
+  
+  write.csv(res_tb, file = paste('results', '_', name, '.csv', sep = ''))
+  write.table(rank, file=paste('rank', '_', name, '.rnk', sep = ''), sep = '\t', quote=F, row.names=F)
+}
+```
+
+MB IP Outlier Evidence
+```{r fig.height = 4, fig.width = 8}
+
+name = 'pk_batch_1_ip_mb'
+metadata_filter = "batch_trap %in% c('b3') & ip == 'ip' & region == 'mb'"
+batch_correct = F
+batch = 'region'
+skip_pcaExplorer = T
+
+run_blindedCounts()
+
+#Density plot facet
+facet = T
+facet_factor = "age"
+
+run_densityPlot()
+
+#Dopamine counts facet
+facet = T
+facet_factor = "HGNC.symbol"
+
+run_dopaCounts()
+
+```
+Striatum IP Outlier Evidence
+```{r fig.height = 4, fig.width = 8}
+
+name = 'pk_batch_1_ip_striatum'
+metadata_filter = "batch_trap %in% c('b3') & ip == 'ip' & region != 'mb'"
+batch_correct = F
+batch = 'region'
+skip_pcaExplorer = F
+
+run_blindedCounts()
+
+#Density plot facet
+facet = T
+facet_factor = "age"
+
+run_densityPlot()
+
+#Dopamine counts facet
+facet = T
+facet_factor = "HGNC.symbol"
+
+run_dopaCounts()
+
+```
+
+
+
+**Comparison 1 -> Axon IP vs Midbrain IP**
+```{r}
+name = 'axon_ip_vs_mb_ip'
+
+metadata_filter = "ip == 'ip' & batch_trap %in% c('b3')"
+
+design = ~ collection_day + age + axon
+
+min_counts = 100
+
+reference_column <- 'axon'
+reference_level <- 'mb'
+
+run_deseq()
+```
+
+**Comparison 2 -> Axon UB vs Midbrain UB**
+```{r}
+name = 'axon_ub_vs_mb_ub'
+
+metadata_filter = "ip == 'input' & batch_trap %in% c('b2','b3')"
+
+design <- ~ batch_trap + age + axon
+
+min_counts = 100
+
+reference_column <- 'axon'
+reference_level <- 'mb'
+
+run_deseq()
+```
+
+**Comparison 3 -> Axon IP vs Axon UB**
+```{r}
+name = 'axon_ip_vs_axon_ub'
+
+metadata_filter = "axon == 'axon'"
+
+design <- ~ age + ip
+
+min_counts = 10
+
+reference_column <- 'ip'
+reference_level <- 'input'
+
+run_deseq()
+```
+
+**Comparison 4 -> Midbrain IP vs Midbrain UB**
+```{r}
+name = 'mb_ip_vs_mb_ub'
+
+metadata_filter = "axon == 'mb' & batch_trap %in% c('b2', 'b3')"
+
+design <- ~ batch_trap + age + ip
+
+min_counts = 10
+
+reference_column <- 'ip'
+reference_level <- 'input'
+
+run_deseq()
+```
+
+**Comparison 5 -> Dorsal Striatum IP vs Ventral Striatum IP**
+```{r}
+name = 'ds_ip_vs_vs_ip'
+
+metadata_filter = "axon == 'axon' & ip == 'ip'"
+
+design <- ~ collection_day + age + region
+
+min_counts = 100
+
+reference_column <- 'region'
+reference_level <- 'vs'
+
+run_deseq()
+```
+
+**Comparison 6 -> Dorsal Striatum UB vs Ventral Striatum UB**
+```{r}
+name = 'ds_ub_vs_vs_ub'
+
+metadata_filter = "axon == 'axon' & ip == 'input'"
+
+design = ~ collection_day + age + region
+
+min_counts = 100
+
+reference_column <- 'region'
+reference_level <- 'vs'
+
+run_deseq()
+```
+
+**Comparison 7 -> Dorsal Striatum IP vs Dorsal Striatum UB**
+```{r}
+name = 'ds_ip_vs_ds_ub'
+
+metadata_filter = "region == 'ds'"
+
+design = ~ age + ip
+
+min_counts = 10
+
+reference_column <- 'ip'
+reference_level <- 'input'
+
+run_deseq()
+```
+
+**Comparison 8 -> Ventral Striatum IP vs Ventral Striatum UB**
+```{r}
+name = 'vs_ip_vs_vs_ub'
+
+metadata_filter = "region == 'vs'"
+
+design = ~ age + ip
+
+min_counts = 10
+
+reference_column <- 'ip'
+reference_level <- 'input'
+
+run_deseq()
+```
+
+**Enrichment/Unique filtering**
+```{r}
+mb_enriched <- res_output_mb_ip_vs_mb_ub %>% filter(log2FoldChange > 0 & padj < 0.01)
+mb_ip_genes <- nrow(mb_enriched)
+axon_enriched <- res_output_axon_ip_vs_axon_ub %>% filter(log2FoldChange > 0 & padj < 0.01)
+axon_ip_genes <- nrow(axon_enriched)
+
+mb_axon_shared <- mb_enriched %>% filter(gene %in% axon_enriched$gene) %>% select(c("gene"))
+mb_axon_genes <- nrow(mb_axon_shared)
+mb_only <- mb_enriched %>% filter(!gene %in% axon_enriched$gene) %>% select(c("gene"))
+axon_only <- axon_enriched %>% filter(!gene %in% mb_enriched$gene) %>% select(c("gene"))
+
+ds_enriched <- res_output_ds_ip_vs_ds_ub %>% filter(log2FoldChange > 2 & padj < 0.001)
+ds_ip_genes <- nrow(ds_enriched)
+vs_enriched <- res_output_vs_ip_vs_vs_ub %>% filter(log2FoldChange > 2 & padj < 0.001)
+vs_ip_genes <- nrow(vs_enriched)
+
+ds_vs_shared <- vs_enriched %>% filter(gene %in% ds_enriched$gene) %>% select(c("gene"))
+ds_only <- ds_enriched %>% filter(!gene %in% vs_enriched$gene) %>% select(c("gene"))
+ds_only_genes <- nrow(ds_only)
+vs_only <- vs_enriched %>% filter(!gene %in% ds_enriched$gene) %>% select(c("gene"))
+vs_only_genes <- nrow(vs_only)
+
+ds_ip_enriched_over_vs_ip <- res_output_ds_ip_vs_vs_ip %>% filter(log2FoldChange < 0.58 & padj < 0.001)
+vs_ip_enriched_over_ds_ip <- res_output_ds_ip_vs_vs_ip %>% filter(log2FoldChange > 0.58 & padj < 0.001)
+ds_ub_enriched_over_vs_ub <- res_output_ds_ub_vs_vs_ub %>% filter(log2FoldChange < 0.58 & padj < 0.001)
+vs_ub_enriched_over_ds_ub <- res_output_ds_ub_vs_vs_ub %>% filter(log2FoldChange > 0.58 & padj < 0.001)
+ds_ip_enriched_over_vs_ip <- ds_ip_enriched_over_vs_ip %>% filter(!gene %in% ds_ub_enriched_over_vs_ub$gene)
+vs_ip_enriched_over_ds_ip <- vs_ip_enriched_over_ds_ip %>% filter(!gene %in% vs_ub_enriched_over_ds_ub$gene)
+
+```
+
+Plot DA markers
+```{r}
+genes <- c('ENSMUSG00000000214', #Th 
+           'ENSMUSG00000021609', #Slc6a3
+           'ENSMUSG00000025094', #Vmat2
+           'ENSMUSG00000026826') #Nurr1 
+
+all_counts <- as.data.frame(log2(counts(dds_axon_ip_vs_axon_ub, normalized = T)))
+
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+  
+# display.brewer.all(colorblindFriendly = TRUE)
+
+title <- 'Dopaminergic markers in axon TRAP samples'
+caption <- 'Markers of dopaminergic neurons are enriched in axonal samples.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+ip_ub_multi_boxplot
+
+```
+
+
+Plot astrocyte markers
+```{r}
+genes <- c('ENSMUSG00000030088', #aldh1l1
+           'ENSMUSG00000020932', #gfap
+           'ENSMUSG00000033208', #s100b
+           'ENSMUSG00000005089', #Slc1a2/GLT-1
+           'ENSMUSG00000005360') #Slc1a3/GLAST
+
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+
+title <- 'Astrocyte markers in axon TRAP samples'
+caption <- 'Markers of astroctytes are enriched in axonal samples.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+ip_ub_multi_boxplot
+
+```
+Plot GABA Transporters
+```{r}
+genes <- c('ENSMUSG00000030310', 
+           'ENSMUSG00000030108', 
+           'ENSMUSG00000030307', 
+           'ENSMUSG00000021609') # GABA transporters
+```
+
+
+Plot MSN markers
+```{r}
+genes <- c('ENSMUSG00000030067', #Foxp1
+           'ENSMUSG00000061718', #DARPP-32
+           'ENSMUSG00000048251') #CTIP2
+
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+title <- 'Medium spiny neuron markers in axon TRAP samples'
+caption <- 'Markers of medium spiny neurons are not enriched in axonal samples.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+ip_ub_multi_boxplot
+
+```
+
+
+
+Plot Cholinergic interneuron markers
+[GABA receptor paper](https://www.sciencedirect.com/science/article/pii/S0006899300026366?via%3Dihub)
+```{r}
+genes <- c('ENSMUSG00000100241', #VAChT
+           'ENSMUSG00000021919', #CHAT
+           'ENSMUSG00000023328', #ACHE
+           'ENSMUSG00000031343') #GABA receptor a3
+
+# 'ENSMUSG00000049313', #Sorl1
+# 'ENSMUSG00000073418', #C4b
+# 'ENSMUSG00000022602', #Arc
+# 'ENSMUSG00000038642', #Ctss
+# 'ENSMUSG00000033981', #Gria2/AMPA2
+# 'ENSMUSG00000021670', #Hmgcr
+# 'ENSMUSG00000093930') #Hmgcs1
+
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+title <- 'Cholinergic interneuron markers in axon TRAP samples'
+caption <- 'Markers of cholinergic interneurons are enriched in axonal samples.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+ip_ub_multi_boxplot
+
+```
+
+Plot microglia markers [Microglia and macrophages in brain homeostasis and disease, 2017](https://www.nature.com/articles/nri.2017.125#microglia-and-brain-macrophages)
+```{r}
+genes <- c('ENSMUSG00000031665', #SALL1
+           'ENSMUSG00000030786', #ITGAM
+           'ENSMUSG00000052336', #CX3CR1
+           'ENSMUSG00000036353', #P2RY12
+           'ENSMUSG00000026395', #CD45(low?)
+           'ENSMUSG00000054675', #TMEM119
+           'ENSMUSG00000074622', #Mafb
+           'ENSMUSG00000038400') #PMEPA1
+
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+
+title <- 'Microglia markers in axon TRAP samples'
+caption <- '5/8 microglial/macrophage markers are enriched in axonal samples, however TMEM119 and SALL1 (two well characterised markers) are not.'
+caption <- paste0(strwrap(caption, 90), sep="", collapse="\n")
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+
+ip_ub_multi_boxplot
+
+```
+
+
+Plot tissue macrophage markers
+```{r}
+genes <- c('ENSMUSG00000030786', #ITGAM/CD11b
+           'ENSMUSG00000052336', #CX3CR1
+           'ENSMUSG00000026395', #CD45(low?)/PTPRC
+           'ENSMUSG00000014361', #MERTK
+           'ENSMUSG00000015947', #CD64/FCGR1A/B
+           'ENSMUSG00000026712', #Mrc1/CD206 (meningeal marker)
+           'ENSMUSG00000008845', #CD163 (perivascular marker)
+           'ENSMUSG00000059498') #FGCR3A (CD16)
+
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+
+title <- 'Tissue macrophage markers in axon TRAP samples'
+caption <- 'Tissue macrophage markers are enriched in axonal samples. Markers of meningeal macrophages are all enriched, however the perivascular marker (CD163) is not.'
+caption <- paste0(strwrap(caption, 100), sep="", collapse="\n")
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = HGNC.symbol, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+ip_ub_multi_boxplot
+
+```
+
+Plot ideal axonal genes
+```{r}
+genes <- c('ENSMUSG00000014602', #Kif1a
+           'ENSMUSG00000040265', #Dnm3
+           'ENSMUSG00000038486', #sv2a
+           #'ENSMUSG00000032382', #Snx1
+           'ENSMUSG00000009394', #Synapsin II
+           'ENSMUSG00000031144', #Synaptophysin
+           'ENSMUSG00000020111', #Micu1
+           'ENSMUSG00000019302', #Atp6v0a1
+           'ENSMUSG00000021609') #Slc6a3
+           #'ENSMUSG00000000214' #Th
+
+
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+
+title <- 'Enrichment of Synaptic and Dopaminergic Markers'
+caption <- ''
+caption <- paste0(strwrap(caption, 100), sep="", collapse="\n")
+
+level_order <- c('SLC6A3', 'DNM3', 'KIF1A', 'SV2A', 'SYN2', 'SYP', 'ATP6V0A1', 'MICU1') #this vector might be useful for other plots/analyses
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = factor(HGNC.symbol, levels = level_order), y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.title = element_text(size = 30, face = 'bold')) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right") +
+  theme(axis.text = element_text(size = 18, face = 'bold')) + 
+  theme(axis.title = element_text(size = 20, face = 'bold')) + 
+  theme(legend.text=element_text(size=20, face = 'bold')) +
+  theme(legend.title = element_text(size = 20, face = 'bold'))
+
+
+ip_ub_multi_boxplot
+
+aspect_ratio <- 1.77
+height <- 7
+ggsave("ip_ub_multi_boxplot.png", height = 7 , width = 7 * aspect_ratio, device = png())
+
+```
+#Dat, Synaptic proteins, then Micu/Atp/Kif1
+#Enlarge label fonts +++
+
+Richard final big plot
+```{r}
+genes <- c('ENSMUSG00000000214', #TH
+           'ENSMUSG00000021609', #SLC6A3
+           'ENSMUSG00000031144', #SYP
+           #'ENSMUSG00000035864', #SYT1 - not enriched
+           'ENSMUSG00000026452', #SYT2
+           'ENSMUSG00000059602', #SYN3
+           'ENSMUSG00000038486', #SV2A
+           'ENSMUSG00000053025', #SV2B
+           'ENSMUSG00000034187', #NSF
+           'ENSMUSG00000026825', #DNM1
+           'ENSMUSG00000033335', #DNM2
+           'ENSMUSG00000040265', #DNM3
+           'ENSMUSG00000020111', #Micu1
+           'ENSMUSG00000019302' #ATP6V0A1
+           )
+          
+counts_to_plot <- all_counts %>% 
+  rownames_to_column(var = "gene") %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  gather(sample,counts,-gene) %>%
+  inner_join(anno, by = c("gene" = "Gene.stable.ID")) %>%
+  inner_join(sample_metadata_all, by = c("sample" = "sample_name")) %>%
+  mutate(ip = recode(ip, ip = "IP", input = "Input"))
+
+title <- 'Enrichment of Synaptic and Dopaminergic Markers'
+caption <- ''
+caption <- paste0(strwrap(caption, 100), sep="", collapse="\n")
+
+level_order <- c('TH', 'SLC6A3', 'SYP', 'SYT2', 'SYN3', 'SV2A', 'SV2B', 'NSF', 'DNM1', 'DNM2', 'DNM3', 'MICU1', 'ATP6V0A1') #this vector might be useful for other plots/analyses
+
+ip_ub_multi_boxplot <- ggplot(counts_to_plot, aes(x = factor(HGNC.symbol, levels = level_order), y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0, size = 0.8) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() +
+  xlab('Gene') +
+  ylab('log2 Counts') +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = title, 
+       caption = caption) +
+  theme(plot.title = element_text(size = 30, face = 'bold')) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right") +
+  theme(axis.text = element_text(size = 18, face = 'bold')) +
+  theme(axis.text.x = element_text(size = 18, angle = 45, hjust = 1)) +
+  theme(axis.title = element_text(size = 20, face = 'bold')) + 
+  theme(legend.text=element_text(size=17, face = 'bold')) +
+  theme(legend.title = element_text(size = 20, face = 'bold'))
+
+
+ip_ub_multi_boxplot
+
+aspect_ratio <- 1.77
+height <- 8
+ggsave("ip_ub_multi_boxplot_thicker.png", height = height , width = height * aspect_ratio, device = png())
+
+```
+
+ER/Glycosylation/Oligosaccharide plots
+```{r}
+er_chaperone_genes <- c('ENSMUSG00000020048', 'ENSMUSG00000026864', 'ENSMUSG00000032115', 'ENSMUSG00000024357', 'ENSMUSG00000004460', 'ENSMUSG00000027006', 'ENSMUSG00000022136', 'ENSMUSG00000019802', 'ENSMUSG00000026740', 'ENSMUSG00000070436', 'ENSMUSG00000020048', 'ENSMUSG00000023973')
+
+glycosylation_genes <- c('ENSMUSG00000020368', 'ENSMUSG00000003814', 'ENSMUSG00000089960', 'ENSMUSG00000030062', 'ENSMUSG00000027642', 'ENSMUSG00000071650', 'ENSMUSG00000040462', 'ENSMUSG00000020311', 'ENSMUSG00000036646', 'ENSMUSG00000038312', 'ENSMUSG00000043019')
+
+oligosaccharide_genes <- c('ENSMUSG00000039427', 'ENSMUSG00000063362', 'ENSMUSG00000033809', 'ENSMUSG00000039740', 'ENSMUSG00000052395', 'ENSMUSG00000032059', 'ENSMUSG00000035845', 'ENSMUSG00000073792', 'ENSMUSG00000035704', 'ENSMUSG00000032116', 'ENSMUSG00000032437', 'ENSMUSG00000030035', 'ENSMUSG00000038803', 'ENSMUSG00000036632', 'ENSMUSG00000078919')
+
+genes <- er_chaperone_genes
+
+all_results <- res_output_axon_ip_vs_axon_ub %>% inner_join(res_output_mb_ip_vs_mb_ub, by = c("gene" = "gene"))
+
+results_to_plot <- all_results %>% 
+  as_tibble %>%
+  filter(gene %in% genes) %>% 
+  select(Gene.name.x, log2FoldChange.x, log2FoldChange.y) %>% 
+  rename(gene = Gene.name.x, axon = log2FoldChange.x, soma = log2FoldChange.y) %>% 
+  gather(region, enrichment, -gene)
+
+ggplot(results_to_plot, aes(x = gene, y = enrichment, fill = region)) + 
+  geom_bar(stat = "identity", position = "dodge", colour="black") +
+  theme_bw() +
+  coord_flip() +
+  scale_color_npg() +
+  scale_fill_npg() +
+  ggtitle('Glycosylation Gene IP Expression Relative to Input') +
+  labs(fill='Region') + 
+  xlab('Gene') + 
+  ylab('Log2 fold change compared to input') +
+  geom_hline(yintercept = 0)
+
+```
+
+Normalisation factor plots
+```{r}
+nf <- as.data.frame(normalizationFactors(dds_axon_ip_vs_axon_ub)) 
+nf <- nf %>%
+  rownames_to_column(var = 'gene') %>%
+  as_tibble() %>%
+  gather(colnames(nf), key = 'samplename', value = 'normFactors') %>%
+  separate(samplename, c('ip', 'region', 'sampleinfo'), sep = c(2, 4))
+
+ggplot(nf, aes(normFactors, group = ip, fill = ip)) + 
+  geom_density(alpha = 0.8, position = 'identity') + 
+  theme_bw() +
+  xlim(0.5, 2) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  ggtitle('Normalisation Factor Distribution') +
+  labs(fill='Sample Type') + 
+  xlab('Normalisation Factor') + 
+  ylab('Density') +
+  geom_hline(yintercept = 0)
+
+#ggsave("nf_plot_mb_batch_2.pdf", width = 20, height = 20, units = "cm")
+```
+
+Cre/eGFP unbound plots
+```{r}
+trinity_tx2gene <- read.csv("/zfs/analysis/pk_trap/trinity_out_dir/tx_names.txt", header = F) %>%
+  rename(TXID = V1) %>%
+  mutate(GENEID = TXID) %>%
+  mutate(GENEID = recode(GENEID, TRINITY_DN144_c0_g1_i8 = "eGFP-L10a", TRINITY_DN144_c0_g5_i1 = "IRES-Cre")) %>%
+  as_tibble()
+
+trinity_ub_path <- "/zfs/analysis/pk_trap/trinity_kallisto_all/"
+
+name = 'axon_ub_vs_mb_ub'
+metadata_filter = "ip == 'input' & batch_trap %in% c('b2','b3')"
+design <- ~ batch_trap + age + axon
+
+trinity_ub_sample_metadata <- sample_metadata_all %>% data.frame() %>%
+                    as_tibble() %>% filter(eval(parse(text=metadata_filter)))
+
+#create list of kallisto input files
+trinity_ub_files <- file.path(trinity_ub_path, trinity_ub_sample_metadata$sample_code, "abundance.h5")
+names(trinity_ub_files) <- trinity_ub_sample_metadata$sample_name
+
+#import kallisto files
+trinity_ub_txi <- tximport(trinity_ub_files, type = "kallisto", tx2gene = trinity_tx2gene, ignoreTxVersion = F, geneIdCol = "GENEID")
+  
+#create deseq2 object
+trinity_ub_dds <- DESeqDataSetFromTximport(trinity_ub_txi, colData = trinity_ub_sample_metadata, design = design)
+
+#calculate XYZ
+trinity_ub_dds <- DESeq(trinity_ub_dds, minReplicatesForReplace = replicate_replace)
+
+trinity_ub_counts <- as.data.frame(counts(trinity_ub_dds, normalized = T)) %>%
+  rownames_to_column(var = "gene") %>%
+  as_tibble() %>%
+  gather(sample,counts,-gene) %>%
+  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) 
+
+  egfp_l10a_ub_counts <- trinity_ub_counts %>%
+  filter(gene == 'eGFP-L10a') %>%
+  select(gene, sample, region, ip, counts) 
+
+ires_cre_ub_counts <- trinity_ub_counts %>%
+  filter(gene == 'IRES-Cre') %>%
+  select(gene, sample, region, ip, counts) 
+
+#eGFP Input samples
+caption <- 'eGFP is detectable in input RNA from striatum, either supporting axonal translation of eGFP-L10a or transcription/translation in non-dopamine cell types.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+eGFP_multi_boxplot <- ggplot(egfp_l10a_ub_counts, aes(x = region, y = counts, fill = region)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_jitter(alpha = 0.5, pch = 21) +  
+  theme_bw() + 
+  labs(fill = 'Region') +
+  xlab('Region') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'eGFP-L10a Transcript Counts in Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "none")
+
+eGFP_multi_boxplot
+
+#Cre Input samples
+caption <- 'Cre is not detectable in input RNA from striatum, however counts are low, so this does not rule out Cre expression in striatum.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+cre_multi_boxplot <- ggplot(ires_cre_ub_counts, aes(x = region, y = counts, fill = region)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_jitter(alpha = 0.5, pch = 21) +
+  theme_bw() + 
+  labs(fill = 'Region') +
+  xlab('Region') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'IRES-Cre Transcript Counts in Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "none")
+
+cre_multi_boxplot
+
+```
+
+Cre/eGFP IP plots
+```{r}
+trinity_ip_path <- "/zfs/analysis/pk_trap/trinity_kallisto_all/"
+
+name = 'axon_ip_vs_mb_ip'
+metadata_filter = "ip == 'ip' & batch_trap %in% c('b2', 'b3')"
+design <- ~ age + axon
+
+trinity_ip_sample_metadata <- sample_metadata_all %>% data.frame() %>%
+                    as_tibble() %>% filter(eval(parse(text=metadata_filter)))
+
+#create list of kallisto input files
+trinity_ip_files <- file.path(trinity_ip_path, trinity_ip_sample_metadata$sample_code, "abundance.h5")
+names(trinity_ip_files) <- trinity_ip_sample_metadata$sample_name
+
+#import kallisto files
+trinity_ip_txi <- tximport(trinity_ip_files, type = "kallisto", tx2gene = trinity_tx2gene, ignoreTxVersion = F, geneIdCol = "GENEID")
+  
+#create deseq2 object
+trinity_ip_dds <- DESeqDataSetFromTximport(trinity_ip_txi, colData = trinity_ip_sample_metadata, design = design)
+
+#calculate XYZ
+trinity_ip_dds <- DESeq(trinity_ip_dds, minReplicatesForReplace = replicate_replace)
+
+trinity_ip_counts <- as.data.frame(counts(trinity_ip_dds, normalized = T)) %>%
+  rownames_to_column(var = "gene") %>%
+  as_tibble() %>%
+  gather(sample,counts,-gene) %>%
+  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) 
+
+ires_cre_ip_counts <- trinity_ip_counts %>%
+  filter(gene == 'IRES-Cre') %>%
+  select(gene, sample, region, ip, counts) 
+
+#Cre IP samples
+caption <- 'Cre is below the limit of detection in axonal IP samples. It is either present at a low level in non-dopaminergic cells or not transcribed at all. qPCR needs to be done on striatal input samples to accurately compare expression to midbrain.'
+caption <- paste0(strwrap(caption, 120), sep="", collapse="\n")
+
+cre_multi_boxplot <- ggplot(ires_cre_ip_counts, aes(x = region, y = counts, fill = region)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_jitter(alpha = 0.5, pch = 21) +
+  theme_bw() + 
+  labs(fill = 'Region') +
+  xlab('Region') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'IRES-Cre Transcript Counts in IP RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "none")
+
+cre_multi_boxplot
+
+```
+
+Cre/eGFP IP vs UB plots
+```{r}
+name = 'ip_vs_ub'
+metadata_filter = "batch_trap %in% c('b2', 'b3')"
+design <- ~ age + ip
+
+trinity_ip_ub_sample_metadata <- sample_metadata_all %>% data.frame() %>%
+                    as_tibble() %>% filter(eval(parse(text=metadata_filter)))
+
+#create list of kallisto input files
+trinity_ip_ub_files <- file.path(trinity_ip_path, trinity_ip_ub_sample_metadata$sample_code, "abundance.h5")
+names(trinity_ip_ub_files) <- trinity_ip_ub_sample_metadata$sample_name
+
+#import kallisto files
+trinity_ip_ub_txi <- tximport(trinity_ip_ub_files, type = "kallisto", tx2gene = trinity_tx2gene, ignoreTxVersion = F, geneIdCol = "GENEID")
+  
+#create deseq2 object
+trinity_ip_ub_dds <- DESeqDataSetFromTximport(trinity_ip_ub_txi, colData = trinity_ip_ub_sample_metadata, design = design)
+
+#calculate XYZ
+trinity_ip_ub_dds <- DESeq(trinity_ip_ub_dds, minReplicatesForReplace = replicate_replace)
+trinity_ip_ub_counts <- as.data.frame(counts(trinity_ip_ub_dds, normalized = T)) %>%
+  rownames_to_column(var = "gene") %>%
+  as_tibble() %>%
+  gather(sample,counts,-gene) %>%
+  inner_join(sample_metadata_all, by = c('sample' = 'sample_name')) 
+
+  egfp_l10a_ip_ub_counts <- trinity_ip_ub_counts %>%
+  filter(gene == 'eGFP-L10a') %>%
+  select(gene, sample, region, ip, counts) 
+
+ires_cre_ip_ub_counts <- trinity_ip_ub_counts %>%
+  filter(gene == 'IRES-Cre') %>%
+  select(gene, sample, region, ip, counts) 
+
+#eGFP IP and UB samples
+caption <- 'eGFP-L10a is enriched in midbrain samples, but not in axonal samples. This suggests that eGFP-L10a RNA is not being translated in striatum, while Th and Slc6a3 are.'
+caption <- paste0(strwrap(caption, 100), sep="", collapse="\n")
+
+eGFP_multi_boxplot <- ggplot(egfp_l10a_ip_ub_counts, aes(x = region, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() + 
+  xlab('Gene') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'eGFP-L10a Transcript Counts in IP and Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+eGFP_multi_boxplot
+
+#Cre IP and UB samples
+caption <- 'Cre transcripts are enriched in midbrain and axon samples, however qPCR needs to be done to accurately measure axonal enrichment because of low count number.'
+caption <- paste0(strwrap(caption, 100), sep="", collapse="\n")
+
+cre_multi_boxplot <- ggplot(ires_cre_ip_ub_counts, aes(x = region, y = counts, fill = ip)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_point(pch = 21, position = position_jitterdodge()) +
+  theme_bw() + 
+  labs(fill = 'Region') +
+  xlab('Region') +
+  ylab('Counts') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Sample Type',
+       title = 'IRES-Cre Transcript Counts in IP and Input RNA', 
+       caption = caption) +
+  theme(plot.caption = element_text(hjust = 0, face = "bold"), legend.position = "right")
+
+cre_multi_boxplot
+
+```
+
+Using striatal single cell markers to examine cell type enrichment in striatum [Link to paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5004635/)
+Used Table S2 to generate list of matching genes
+```{r}
+striatal_markers <- read.csv(file = file.path(base_dir, "external_datasets/striatal_markers.csv"))
+
+marker_rank <- res_output_axon_ip_vs_axon_ub %>% 
+  filter(Gene.name %in% striatal_markers$gene) %>%
+  inner_join(striatal_markers, by = c('Gene.name' = 'gene')) %>%
+  filter(padj < 0.01) %>%
+  select(Gene.name, Cell.Type, log2FoldChange) %>%
+  arrange(desc(log2FoldChange))
+
+grid.table(head(n=10, marker_rank))
+
+```
+
+Evaluate astrocyte enrichment in [Sakers, 2017 dataset](https://www.pnas.org/content/114/19/E3830)
+```{r}
+kallisto_path <- file.path("/zfs/analysis/pk_trap/astrocyte_trap_sakers_2017/kallisto")
+sample_metadata_all <- read.csv(file = file.path(base_dir, "external_datasets/astro_sample_table.csv"))
+name = 'sakers_ip_vs_ub'
+metadata_filter = "ip %in% c('ip', 'ub')"
+design <- ~ ip
+reference_column <- 'ip'
+reference_level <- 'ub'
+min_counts = 10
+
+run_deseq()
+
+plotPCA(vsd_sakers_ip_vs_ub, intgroup = 'ip')
+plotCounts(dds_sakers_ip_vs_ub, gene = "ENSMUSG00000000214", intgroup = "ip") #They express Th (supportive evidence: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4465985/)
+plotCounts(dds_sakers_ip_vs_ub, gene = "ENSMUSG00000021609", intgroup = "ip") #But not DAT!
+
+sample_metadata_all <- read.csv(file.path(base_dir, "metadata/sample_metadata_110719.csv"), header = T)
+sample_metadata_all <- sample_metadata_all %>% filter(outlier == 'n' & ip_pool == 'n')
+kallisto_path <- file.path("/zfs/analysis/pk_trap/trap_kall_protcod_ercc")
+```
+
+Remove Sakers-enriched genes from axon_ip_vs_ub
+```{r}
+astro_enriched <- res_output_sakers_ip_vs_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01)
+
+axon_enriched_sakers_filtered <- res_output_axon_ip_vs_axon_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01) %>%
+  filter(!gene %in% astro_enriched$gene)
+
+removed <- res_output_axon_ip_vs_axon_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01) %>%
+  filter(gene %in% astro_enriched$gene)
+
+mb_genes_in_sakers <- res_output_mb_ip_vs_mb_ub %>%
+  filter(gene %in% astro_enriched$gene) %>%
+  filter(padj < 0.01 & log2FoldChange > 0)
+
+### GSEA
+
+removed$fcsign <- sign(removed$log2FoldChange)
+  removed$logP <- -log10(removed$padj)
+  removed$metric <- removed$logP/removed$fcsign
+  removed <- removed %>% unique() %>% na.omit() %>% arrange(desc(metric))
+  rank <- removed[,c("HGNC.symbol", "metric")]
+  assign(paste('removed_rank'), envir = .GlobalEnv, rank)
+write.table(rank, file=paste('removed_rank', '.rnk', sep = ''), sep = '\t', quote=F, row.names=F)
+
+mb_genes_in_sakers$fcsign <- sign(mb_genes_in_sakers$log2FoldChange)
+  mb_genes_in_sakers$logP <- -log10(mb_genes_in_sakers$padj)
+  mb_genes_in_sakers$metric <- mb_genes_in_sakers$logP/mb_genes_in_sakers$fcsign
+  mb_genes_in_sakers <- mb_genes_in_sakers %>% unique() %>% na.omit() %>% arrange(desc(metric))
+  rank <- mb_genes_in_sakers[,c("HGNC.symbol", "metric")]
+  assign(paste('mb_common_rank'), envir = .GlobalEnv, rank)
+write.table(rank, file=paste('mb_common_rank', '.rnk', sep = ''), sep = '\t', quote=F, row.names=F)
+  
+```
+
+Rank genes by striatal single cell markers (Malenka/Sudhof striatal taxonomy paper)
+```{r}
+marker_rank_sakers_filtered <- axon_enriched_sakers_filtered %>% 
+  filter(Gene.name %in% striatal_markers$gene) %>%
+  inner_join(striatal_markers, by = c('Gene.name' = 'gene')) %>%
+  filter(padj < 0.01) %>%
+  select(Gene.name, Cell.Type, log2FoldChange) %>%
+  arrange(desc(log2FoldChange))
+
+grid.table(head(n=15, marker_rank_sakers_filtered))
+```
+
+Rank again after filtering macrophage TRAP
+```{r}
+marker_rank_sakers_macro_filtered <- axon_enriched_astro.macro.removed %>% 
+  filter(Gene.name %in% striatal_markers$gene) %>%
+  inner_join(striatal_markers, by = c('Gene.name' = 'gene')) %>%
+  filter(padj < 0.01) %>%
+  select(Gene.name, Cell.Type, log2FoldChange) %>%
+  arrange(desc(log2FoldChange))
+
+grid.table(head(n=15, marker_rank_sakers_macro_filtered))
+```
+
+Evaluate cholinergic enrichment in [McKeever, 2017](https://www.ncbi.nlm.nih.gov/pubmed/28628896)
+```{r}
+kallisto_path <- file.path("/zfs/analysis/pk_trap/cholinergic/kallisto/")
+sample_metadata_all <- read.csv(file = file.path("/zfs/analysis/pk_trap/cholinergic/metadata/samples.txt"), sep = "\t")
+name = 'cholinergic_ip_vs_ub'
+metadata_filter = "ip %in% c('ip', 'input')"
+design <- ~ tg + ip
+reference_column <- 'ip'
+reference_level <- 'input'
+min_counts = 10
+
+run_deseq()
+
+plotPCA(vsd_cholinergic_ip_vs_ub, intgroup = 'ip')
+plotCounts(dds_cholinergic_ip_vs_ub, gene = "ENSMUSG00000000214", intgroup = "ip") #They express Th (supportive evidence: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4465985/)
+plotCounts(dds_cholinergic_ip_vs_ub, gene = "ENSMUSG00000021609", intgroup = "ip") #But not DAT!
+
+sample_metadata_all <- read.csv(file.path(base_dir, "metadata/sample_metadata_110719.csv"), header = T)
+sample_metadata_all <- sample_metadata_all %>% filter(outlier == 'n' & ip_pool == 'n')
+kallisto_path <- file.path("/zfs/analysis/pk_trap/trap_kall_protcod_ercc")
+```
+Remove McKeever-enriched genes from axon_ip_vs_ub
+```{r}
+cholinergic_enriched <- res_output_cholinergic_ip_vs_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01)
+
+axon_enriched_cholinergic_filtered <- res_output_axon_ip_vs_axon_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01) %>%
+  filter(!gene %in% cholinergic_enriched$gene)
+
+removed <- res_output_axon_ip_vs_axon_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01) %>%
+  filter(gene %in% cholinergic_enriched$gene)
+
+##Remove cholinergic genes from astro-filtered axon list
+axon_enriched_cholinergic_and_astro_filtered <- axon_enriched_sakers_filtered %>%
+  filter(log2FoldChange > 0 & padj < 0.01) %>%
+  filter(!gene %in% cholinergic_enriched$gene)
+
+mb_genes_in_cholinergic <- res_output_mb_ip_vs_mb_ub %>%
+  filter(gene %in% cholinergic_enriched$gene) %>%
+  filter(padj < 0.01 & log2FoldChange > 0)
+
+##Astro-cholinergic overlap
+astro_cholinergic_overlap <- cholinergic_enriched %>%
+  filter(gene %in% astro_enriched$gene)
+
+##Astro-cholinergic-midbrain overlap
+astro_cholinergic_midbrain_overlap <- mb_enriched %>%
+  filter(gene %in% astro_cholinergic_overlap$gene)
+```
+
+Evaluate macrophage enrichment in [Jackson, 2018](https://www.nature.com/articles/s41586-018-0794-7?WT.feed_name=subjects_translation#data-availability)
+```{r}
+kallisto_path <- file.path("/zfs/analysis/pk_trap/macrophage_ribotag_jackson_2018/kallisto/")
+sample_metadata_all <- read.csv(file = file.path("/zfs/analysis/pk_trap/macrophage_ribotag_jackson_2018/metadata/samples.txt"), sep = "\t")
+name = 'macrophage_ip_vs_ub'
+metadata_filter = "ip %in% c('ip', 'input')"
+design <- ~ lps + ip
+reference_column <- 'ip'
+reference_level <- 'input'
+min_counts = 10
+
+run_deseq()
+
+plotPCA(vsd_macrophage_ip_vs_ub, intgroup = 'ip')
+plotCounts(dds_macrophage_ip_vs_ub, gene = "ENSMUSG00000000214", intgroup = "ip") #They express Th (supportive evidence: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4465985/)
+plotCounts(dds_macrophage_ip_vs_ub, gene = "ENSMUSG00000021609", intgroup = "ip") #But not DAT!
+
+sample_metadata_all <- read.csv(file.path(base_dir, "metadata/sample_metadata_110719.csv"), header = T)
+sample_metadata_all <- sample_metadata_all %>% filter(outlier == 'n' & ip_pool == 'n')
+kallisto_path <- file.path("/zfs/analysis/pk_trap/trap_kall_protcod_ercc")
+```
+Remove macrophage/cholinergic/astrocyte-enriched genes from axon_ip_vs_ub
+```{r}
+macrophage_enriched <- res_output_macrophage_ip_vs_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01)
+
+axon_enriched_macrophage_filtered <- res_output_axon_ip_vs_axon_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01) %>%
+  filter(!gene %in% macrophage_enriched$gene)
+
+removed <- res_output_axon_ip_vs_axon_ub %>%
+  filter(log2FoldChange > 0 & padj < 0.01) %>%
+  filter(gene %in% macrophage_enriched$gene)
+
+##Remove macrophage, cholinergic and astrocyte from axon list
+axon_enriched_macrophage_cholinergic_astro_filtered <- axon_enriched %>%
+  filter(!gene %in% cholinergic_enriched$gene) %>%
+  filter(!gene %in% astro_enriched$gene) %>%
+  filter(!gene %in% macrophage_enriched$gene)
+
+removed_all <- axon_enriched %>%
+  filter(!gene %in% axon_enriched_macrophage_cholinergic_astro_filtered$gene)
+
+mb_genes_in_macrophage <- res_output_mb_ip_vs_mb_ub %>%
+  filter(gene %in% macrophage_enriched$gene) %>%
+  filter(padj < 0.01 & log2FoldChange > 0)
+
+##astro-cholin-macro overlap
+astro_cholin_macro_overlap <- cholinergic_enriched %>% 
+  filter(gene %in% astro_enriched$gene) %>%
+  filter(gene %in% macrophage_enriched$gene)
+
+##astro-cholin-macro-midbrainDA overlap
+astro_cholin_macro_midbrain_overlap <- astro_cholin_macro_overlap %>%
+  filter(gene %in% mb_enriched$gene)
+
+##overlap of all 5 datasets
+astro_cholin_macro_midbrain_axon_overlap <- astro_cholin_macro_midbrain_overlap %>%
+  filter(gene %in% axon_enriched$gene)
+
+##midbrain-axon_filtered overlap
+axon_tri_filtered_midbrain_overlap <- axon_enriched_macrophage_cholinergic_astro_filtered %>%
+  filter(gene %in% mb_enriched$gene)
+
+##axon_filtered_unique
+axon_unique_enriched <- axon_enriched_macrophage_cholinergic_astro_filtered %>%
+  filter(!gene %in% mb_enriched$gene)
+
+##remove astro, macro, but not cholinergic
+axon_enriched_astro.macro.removed <- axon_enriched %>%
+  filter(!gene %in% astro_enriched$gene) %>%
+  filter(!gene %in% macrophage_enriched$gene)
+
+axon_genes <- axon_enriched$gene
+axon_genes_astro.removed <- axon_enriched_sakers_filtered$gene
+axon_genes_astro.macro.removed <- axon_enriched_astro.macro.removed$gene
+axon_genes_astro.macro.cholin.removed <- axon_enriched_macrophage_cholinergic_astro_filtered$gene
+
+astro_genes <- astro_enriched$gene
+macro_genes <- macrophage_enriched$gene
+midbrain_genes <- mb_enriched$gene
+
+
+sum(axon_genes %in% midbrain_genes)
+sum(axon_genes_astro.macro.removed %in% midbrain_genes)
+sum(axon_genes_astro.macro.cholin.removed %in% midbrain_genes)
+
+##no remove venn
+length(axon_genes)
+length(midbrain_genes)
+sum(axon_genes %in% midbrain_genes)
+
+#astro-remove venn
+length(axon_genes_astro.removed)
+sum(axon_genes_astro.removed %in% midbrain_genes)
+
+##astro-macro remove venn
+length(axon_genes_astro.macro.removed)
+length(midbrain_genes)
+sum(axon_genes_astro.macro.removed %in% midbrain_genes)
+
+##astro-macro-cholin remove venn
+length(axon_genes_astro.macro.cholin.removed)
+sum(axon_genes_astro.macro.cholin.removed %in% midbrain_genes)
+```
+
+```{r}
+marker_rank_tri_filtered <- axon_enriched_macrophage_cholinergic_astro_filtered %>% 
+  filter(Gene.name %in% striatal_markers$gene) %>%
+  inner_join(striatal_markers, by = c('Gene.name' = 'gene')) %>%
+  filter(padj < 0.01) %>%
+  select(Gene.name, Cell.Type, log2FoldChange) %>%
+  arrange(desc(log2FoldChange))
+
+grid.table(head(n=20, marker_rank_tri_filtered))
+```
+
+Midbrain WGCNA
+```{r}
+name = 'mb_18m_wt_vs_ovx'
+
+metadata_filter = "region == 'mb' & ip == 'ip' & age == 'old' & batch_trap == 'b2' & ip_pool == 'n'"
+
+design = ~ sex + collection_day + ovx
+
+min_counts = 100 #Rationale?
+
+run_deseq()
+
+plotPCA(vsd_mb_18m_wt_vs_ovx, intgroup = 'ovx')
+
+#Checking for good genes
+gsg = goodSamplesGenes(assay(dds_mb_18m_wt_vs_ovx), verbose = 5);
+gsg$allOK
+
+vsd_mb_18m_wt_vs_ovx_corrected <- vst(dds_mb_18m_wt_vs_ovx, blind = F)
+mat <- assay(vsd_mb_18m_wt_vs_ovx_corrected)
+mat <- limma::removeBatchEffect(mat, vsd_mb_18m_wt_vs_ovx_corrected$collection_day)
+assay(vsd_mb_18m_wt_vs_ovx_corrected) <- mat
+
+plotPCA(vsd_mb_18m_wt_vs_ovx_corrected, intgroup = 'ovx')
+
+datExprT <- assay(vsd_mb_18m_wt_vs_ovx_corrected)
+datExprT <- as.data.frame(datExprT) %>%
+  rownames_to_column(var = "gene")
+
+all(sample_metadata_mb_18m_wt_vs_ovx$sample_name == colnames(datExprT[2:17]))
+
+sample_metadata_mb_18m_wt_vs_ovx <- as.data.frame(sample_metadata_mb_18m_wt_vs_ovx[-c(3,4)])
+
+SampleNetwork(
+  datExprT=datExprT,
+  method1="correlation",
+  impute1=FALSE,
+  subset1=NULL,
+  skip1=1,
+  indices1=list(c(2:17)),
+  sampleinfo1=sample_metadata_mb_18m_wt_vs_ovx,
+  subgroup1=13,
+  samplelabels1=1,
+  grouplabels1=4,
+  fitmodels1=TRUE,
+  whichmodel1="multivariate",
+  whichfit1="pc1",
+  btrait1=c(3,6,13),
+  trait1=c(13),
+  asfactors1=c(3,6,13),
+  projectname1="mb_18m_wt_vs_ovx",
+  cexlabels1=0.7,
+  normalize1=FALSE, #Don't quantile normalise DESeq2-normalised RNA-Seq data
+  replacenegs1=FALSE,
+  exportfigures1=TRUE,
+  verbose=TRUE
+)
+
+#IP4F18mPD Z.K < -2
+
+input = as.data.frame(t(datExprT[, -c(1)]))
+names(input)<- datExprT$gene
+dim(input)
+
+traits <- sample_metadata_mb_18m_wt_vs_ovx[c(13)]
+traits$ovx <- as.numeric(traits$ovx)-1
+rownames(traits) <- rownames(input)
+
+#WGCNA Analysis
+powers = c(c(1:11), seq(from = 12, to=20, by=2))
+sft = pickSoftThreshold(input, corFnc = "bicor", corOptions = list(maxPOutliers=0.1), networkType = "signed hybrid", powerVector = powers, verbose = 5)
+
+# Plot the results:
+par(mfrow = c(1,2));
+cex1 = 0.9;
+# Scale-free topology fit index as a function of the soft-thresholding power (Signed)
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+     main = paste("Scale independence"));
+text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     labels=powers,cex=cex1,col="red");
+# this line corresponds to using an R^2 cut-off of h
+abline(h=0.90,col="red")
+# Mean connectivity as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], sft$fitIndices[,5],
+     xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+     main = paste("Mean connectivity"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+
+power <- 10
+  
+##AUTOMATIC METHOD!
+  
+datExpr <- input
+datTraits <- traits
+
+net = blockwiseModules(datExpr, 
+                       power = power,
+                       networkType = "signed hybrid",
+                       TOMType = "signed",
+                       corType = "bicor",
+                       maxPOutliers = 0.1,
+                       pearsonFallback = "individual",
+                       maxBlockSize = 20000,
+                       minModuleSize = 30, 
+                       deepSplit = 2,
+                       reassignThreshold = 0, 
+                       mergeCutHeight = 0.25,
+                       numericLabels = TRUE, 
+                       pamRespectsDendro = FALSE,
+                       saveTOMs = FALSE,
+                       verbose = 5
+                       )
+
+# Convert labels to colors for plotting
+mergedColors = labels2colors(net$colors)
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(net$dendrograms[[1]], 
+                    mergedColors[net$blockGenes[[1]]], 
+                    "Module colors",
+                    dendroLabels = FALSE, 
+                    hang = 0.03,
+                    addGuide = TRUE, 
+                    guideHang = 0.05)
+
+moduleLabels = net$colors
+moduleColors = labels2colors(net$colors)
+MEs = net$MEs;
+geneTree = net$dendrograms[[1]]
+
+# Define numbers of genes and samples
+nGenes = ncol(datExpr);
+nSamples = nrow(datExpr);
+# Recalculate MEs with color labels
+MEs0 = moduleEigengenes(datExpr, moduleColors)$eigengenes
+MEs = orderMEs(MEs0)
+moduleTraitCor = cor(MEs, datTraits, use = "p")
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples)
+
+moduleTraitCorInteresting <- as.data.frame(moduleTraitCor) %>%
+  rownames_to_column("module") %>%
+  filter(ovx > 0.5 | ovx  < -0.5) %>%
+  column_to_rownames("module") %>%
+  as.matrix()
+
+moduleTraitPvalueInteresting <- as.data.frame(moduleTraitPvalue) %>%
+  rownames_to_column("module") %>%
+  filter(ovx < 0.1 & module %in% rownames(moduleTraitCorInteresting)) %>%
+  column_to_rownames("module") %>%
+  as.matrix()
+
+# moduleTraitInteresting <- moduleTraitCorInteresting %>%
+#   inner_join(y=moduleTraitPvalueInteresting, by = "module", suffix = c(".cor", ".pval")) %>%
+#   column_to_rownames("module") %>%
+#   as.matrix()
+
+
+# Will display correlations and their p-values
+textMatrix = paste(signif(moduleTraitCorInteresting, 2), "\n(",
+                        signif(moduleTraitPvalueInteresting, 1), ")", sep = "");
+dim(textMatrix) = dim(moduleTraitCorInteresting)
+
+# Display the correlation values within a heatmap plot
+labeledHeatmap(Matrix = moduleTraitCorInteresting,
+             xLabels = names(datTraits),
+             yLabels = rownames(moduleTraitCorInteresting),
+             ySymbols = rownames(moduleTraitCorInteresting),
+             colorLabels = FALSE,
+             colors = greenWhiteRed(50),
+             textMatrix = textMatrix,
+             setStdMargins = FALSE,
+             cex.text = 0.5,
+             zlim = c(-1,1),
+             main = paste("Module-trait relationships"))
+
+# Define variable ovx containing the ovx column of datTrait
+ovx = as.data.frame(datTraits$ovx);
+names(ovx) = "ovx"
+# names (colors) of the modules
+modNames = substring(names(MEs), 3)
+geneModuleMembership = as.data.frame(cor(datExpr, MEs, use = "p"));
+MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples));
+names(geneModuleMembership) = paste("MM", modNames, sep="");
+names(MMPvalue) = paste("p.MM", modNames, sep="");
+geneTraitSignificance = as.data.frame(cor(datExpr, ovx, use = "p"));
+GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples));
+names(geneTraitSignificance) = paste("GS.", names(ovx), sep="");
+names(GSPvalue) = paste("p.GS.", names(ovx), sep="");
+
+module = "red"
+column = match(module, modNames)
+moduleGenes = moduleColors==module # GET THIS WORKING TO HAVE CLEAR GENE NAMES, NOT ENSEMBL
+
+module_mm_sig <-  tibble(module_membership = abs(geneModuleMembership[moduleGenes, column]), trait_significance = abs(geneTraitSignificance[moduleGenes, 1]))
+
+module_plot <- ggplot(module_mm_sig, aes(x = module_membership, y = trait_significance)) + 
+  geom_point() + 
+  theme_classic() + 
+  xlab('Module Membership') +
+  ylab('Correlation with OVX Status') +
+  expand_limits(y = 0) +
+  scale_color_npg() +
+  scale_fill_npg() +
+  labs(fill = 'Region',
+       title = 'Correlation of Module Membership with OVX Status',
+       caption = "Genes situated in the top right of the graph are most likely to be of interest.") +
+  theme(plot.title = element_text(hjust = 0, face = "bold"), plot.caption = element_text(hjust = 0, face = "bold"))
+
+module_plot + stat_cor(method = "pearson")
+
+module_vsd <- input[, moduleGenes] %>%
+  scale() %>%
+  as.data.frame() %>%
+  rownames_to_column("sample") %>%
+  as_tibble() %>%
+  gather(key = gene, value = vsd_counts, -sample) %>%
+  inner_join(sample_metadata_mb_18m_wt_vs_ovx, by = c("sample" = "sample_name")) %>%
+  select(sample, gene, ovx, vsd_counts) %>%
+  arrange(desc(ovx)) %>%
+  mutate(ovx = factor(ovx, levels = c("wt", "ovx")))
+
+module_heatmap <- ggplot(data = module_vsd, mapping = aes(x = sample, y = gene, fill = vsd_counts)) +
+  geom_tile() +
+  xlab(label = "Sample") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_grid(~ ovx, switch = "x", scales = "free_x", space = "free_x") +
+  scale_fill_gradient2(low = "blue", mid = "black", high = "red") +
+  ggtitle(label = "Putative OVX-relevant Module Expression") +
+  theme(strip.placement = "outside", plot.title = element_text(hjust = 0.5), axis.title.y = element_blank(),
+        strip.background = element_rect(fill = "#EEEEEE", color = "#FFFFFF")) +
+  scale_y_discrete(limits = levels(as.factor(module_vsd$gene))) 
+
+module_heatmap
+
+which.module="blue";
+plotMat(t(scale(datExpr[,moduleGenes]) ),nrgcols=30,rlabels=T,
+        clabels=T,rcols=which.module,
+        title=which.module )
+              
+# # for the second (blue) module we use
+# which.module="blue";
+# plotMat(t(scale(datExpr[,colorh1==which.module ]) ),nrgcols=30,rlabels=T,
+#         clabels=T,rcols=which.module,
+#         title=which.module )
+# which.module="brown";
+# plotMat(t(scale(datExpr[,colorh1==which.module ]) ),nrgcols=30,rlabels=T,
+#         clabels=T,rcols=which.module,
+#         title=which.module )
+# #write.csv(file = "ovx_module_1.csv", names(datExpr)[moduleColors=="brown"])
+
+```
+
+```{r}
+sampleTree = hclust(dist(input), method = "average");
+par(cex = 0.6);
+par(mar = c(0,4,2,0))
+plot(sampleTree, main = "Sample clustering to detect outliers", sub="", xlab="", cex.lab = 1.5,
+     cex.axis = 1.5, cex.main = 2)
+
+n_genes = ncol(input)
+n_samples = nrow(input)
+  
+traits <- sample_metadata_mb_18m_wt_vs_ovx[c(3, 6, 13)]
+traits$collection_day <- as.numeric(traits$collection_day)-1
+traits$sex <- as.numeric(traits$sex)-1
+traits$ovx <- as.numeric(traits$ovx)-1
+rownames(traits) <- rownames(input)
+
+# Re-cluster samples
+sampleTree2 = hclust(dist(input), method = "average")
+# Convert traits to a color representation: white means low, red means high, grey means missing entry
+traitColors = numbers2colors(traits, signed = T);
+# Plot the sample dendrogram and the colors underneath.
+plotDendroAndColors(sampleTree2, traitColors,
+                    groupLabels = names(traits),
+                    main = "Sample dendrogram and trait heatmap")
+  
+adjacency = adjacency(input, power = power, type = "signed", corFnc = "bicor", corOptions = list(maxPOutliers = 0.05, pearsonFallback = "individual"));
+  
+TOM = TOMsimilarity(adjacency, TOMType = "signed", verbose = 3);
+  
+dissTOM = 1-TOM
+
+nSelect = 900
+# For reproducibility, we set the random seed
+set.seed(10);
+select = sample(n_genes, size = nSelect);
+selectTOM = dissTOM[select, select];
+# There’s no simple way of restricting a clustering tree to a subset of genes, so we must re-cluster.
+selectTree = hclust(as.dist(selectTOM), method = "average")
+plotDiss = selectTOM^7;
+diag(plotDiss) = NA;
+TOMplot(plotDiss, selectTree, main = "Topological Overlap Matrix of 18 month IP samples")
+  
+geneTree = hclust(as.dist(dissTOM), method = "average");
+plot(geneTree, xlab="", sub="", main = "Gene clustering on TOM-based dissimilarity",
+       labels = FALSE, hang = 0.04);
+
+CUT_HEIGHT <- 0.995
+
+abline(h = CUT_HEIGHT, col = "red");
+clust = cutreeStatic(sampleTree, cutHeight = CUT_HEIGHT, minSize = 10)
+
+# We like large modules, so we set the minimum module size relatively high:
+minModuleSize = 30;
+# Module identification using dynamic tree cut:
+dynamicMods = cutreeDynamic(dendro = geneTree, distM = dissTOM,
+                            deepSplit = 2, pamRespectsDendro = FALSE,
+                            minClusterSize = minModuleSize,
+                            method = "hybrid");
+table(dynamicMods)
+
+# Convert numeric lables into colors
+dynamicColors = labels2colors(dynamicMods)
+table(dynamicColors)
+# Plot the dendrogram and colors underneath
+plotDendroAndColors(geneTree, dynamicColors, "Dynamic Tree Cut",
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05, 
+                    main = "Gene dendrogram and module colors")
+  
+  # Calculate eigengenes
+  MEList = moduleEigengenes(input, colors = dynamicColors)
+  MEs = MEList$eigengenes
+  # Calculate dissimilarity of module eigengenes
+  MEDiss = 1-cor(MEs);
+  # Cluster module eigengenes
+  METree = hclust(as.dist(MEDiss), method = "average");
+  # Plot the result
+  plot(METree, main = "Clustering of module eigengenes",
+       xlab = "", sub = "")
+  
+  MEDissThres = 0.25
+  # Plot the cut line into the dendrogram
+  abline(h=MEDissThres, col = "red")
+  # Call an automatic merging function
+  merge = mergeCloseModules(input, dynamicColors, cutHeight = MEDissThres, verbose = 3)
+  # The merged module colors
+  mergedColors = merge$colors;
+  # Eigengenes of the new merged modules:
+  mergedMEs = merge$newMEs;
+  
+  plotDendroAndColors(geneTree, cbind(dynamicColors, mergedColors),
+                      c("Dynamic Tree Cut", "Merged dynamic"),
+                      dendroLabels = FALSE, hang = 0.03,
+                      addGuide = TRUE, guideHang = 0.05)
+  
+  moduleColors = mergedColors
+  # Construct numerical labels corresponding to the colors
+  colorOrder = c("grey", standardColors(50));
+  moduleLabels = match(moduleColors, colorOrder)-1;
+  MEs = mergedMEs;
+  
+    #Calculate module eigengenes and correlate eigengenes to trait
+  MEs0 = moduleEigengenes(input, moduleColors)$eigengenes
+  MEs = orderMEs(MEs0)
+  moduleTraitCor = cor(MEs, traits, use = "p");
+  moduleTraitPvalue = corPvalueStudent(moduleTraitCor, n_samples);
+  
+  # Will display correlations and their p-values
+  textMatrix = paste(signif(moduleTraitCor, 2), "\n(",
+                     signif(moduleTraitPvalue, 1), ")", sep = "");
+  dim(textMatrix) = dim(moduleTraitCor)
+  par(mar = c(6, 8.5, 3, 3));
+  # Display the correlation values within a heatmap plot
+  labeledHeatmap(Matrix = moduleTraitCor,
+                 xLabels = names(traits),
+                 yLabels = names(MEs),
+                 ySymbols = names(MEs),
+                 colorLabels = FALSE,
+                 colors = greenWhiteRed(50),
+                 textMatrix = textMatrix,
+                 setStdMargins = FALSE,
+                 cex.text = 0.5,
+                 zlim = c(-1,1),
+                 main = paste("Module-trait relationships"))
+
+moduleTraitCor1 <- as.data.frame(moduleTraitCor) %>%
+  rownames_to_column("module") %>%
+  filter(ovx > 0.5 | ovx < -0.5)
+
+moduleTraitPvalue1 <- as.data.frame(moduleTraitPvalue) %>%
+  rownames_to_column("module") %>%
+  filter(ovx < 0.1)
+
+  # Define variable X containing the X column of traits
+  ovx = as.data.frame(traits$ovx);
+  names(ovx) = "ovx"
+  modNames = substring(names(MEs), 3)
+  geneModuleMembership = as.data.frame(cor(input, MEs, use = "p"));
+  MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), n_samples));
+  names(geneModuleMembership) = paste("MM", modNames, sep="");
+  names(MMPvalue) = paste("p.MM", modNames, sep="");
+  geneTraitSignificance = as.data.frame(cor(input, ovx, use = "p"));
+  GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), n_samples));
+  names(geneTraitSignificance) = paste("GS.", names(ovx), sep="");
+  names(GSPvalue) = paste("p.GS.", names(ovx), sep="");
+
+  module = "coral"
+  column = match(module, modNames);
+  moduleGenes = moduleColors==module;
+  sizeGrWindow(7, 7);
+  par(mfrow = c(1,1));
+  verboseScatterplot(abs(geneModuleMembership[moduleGenes, column]),
+                     abs(geneTraitSignificance[moduleGenes, 1]),
+                     xlab = paste("Module Membership in", module, "module"),
+                     ylab = "Gene significance for disease",
+                     main = paste("Module membership vs. gene significance\n"),
+                     cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = "blue")
+
+
+  which.module="coral";
+  plotMat(input[,colorh1==which.module], nrgcols=30,
+          clabels=rownames(input),rcols=which.module)
+  
+  datME=moduleEigengenes(heatmap_INPUT,colorh1)$eigengenes
+  
+  sizeGrWindow(8,7);
+  which.module="brown"
+  ME=datME[, paste("ME",which.module, sep="")]
+  par(mfrow=c(2,1), mar=c(0.3, 5.5, 4, 2))
+  plotMat(t(scale(heatmap_INPUT[,colorh1==which.module ]) ),
+          nrgcols=30,rlabels=F,rcols=which.module, cex.main=1, clabels=rownames(heatmap_INPUT))
+  par(mar=c(5, 4.2, 0, 0.7))
+  barplot(ME, col=which.module, main="", cex.main=2,
+          ylab="eigengene expression")
+
+```
+
