@@ -2,6 +2,20 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## 9th September 2019
+- Meeting with RWM Friday. Agenda:
+  >1. Biological follow up of current TRAP data. I need to be able, on Dec 3rd at the Wellcome Trust, to demonstrate in some way that at least one exemplar of the TRAP data in the Wellcome proposal is “true”. The TRAP data is novel and exciting, but I still think a bit vulnerable to miserable naysayers.
+  >2. New TRAP cohort
+  >3. Kathie’s paper.
+  
+- [Nalls, 2019](https://www.biorxiv.org/content/10.1101/388165v3) is the latest PD GWAS, identifying 90 signals. This list could be used for prioritising TRAP genes to pursue. GBA was included, but was in 'Hardy-Weinberg Disequilibrium'. 
+  >Under Hardy-Weinberg assumptions, allele and genotype frequencies can be estimated from one generation to the next. Departure from this equilibrium can be indicative of potential genotyping errors, population stratification, or even actual association to the trait under study  [Turner, 2011](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3066182/). It has been consistently noted that many more SNPs are out of HWE at any given significance threshold than would be expected by chance. SNPs severely out of HWE should therefore not be eliminated from the analysis, but flagged for further analysis after the association analyses are performed.
+  
+- Have run 4 dissociation trials so far, with the most recent trial following the [Brewer, 2007](https://www.ncbi.nlm.nih.gov/pubmed/17545985) protocol. Obtained 3.2 million cells from one midbrain on last trial, with >75% viability. Cultured by overriden by bacteria so disposed of the plate. After talking to Nora and Siv, the likelihood of succesfully plating and surviving dopamine neurons is low, so switch back to flow analysis. Discussion with Natalie, recommended to use fixation and antibody staining as done for iPSCs, so stain for Th, in case the endogenous eGFP and FFN102 dye are insufficient. Charmaine is sending protocol and will plan experiment for Wednesday 11th September.
+  - Initial plan: Use THTR surplus mice. 2-3+ mice, 5 weeks old. Brewer protocol, with D-AP5, Kynurenic Acid, EDTA for Ca2+-free, 5% Trehalose, 37&deg;C papain stage, ventilate HibA to oxygenate for (?) hours before protocol (discuss). Will use cortex tissue for Th-ve control region. 
+
+
+
 ## 30th July 2019
 - Reversing order of notes (newest first)
 -  Following lab meeting, priorities are:
