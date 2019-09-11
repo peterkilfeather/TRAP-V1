@@ -15,33 +15,30 @@ library(DESeq2)
 library(tximport)
 library(GenomicFeatures)
 library(biomaRt)
-library(reshape)
-library(reshape2)
+#library(reshape)
+#library(reshape2)
 library(ggplot2)
 library(pheatmap)
 #library(scater)
 library(RColorBrewer)
-library(dplyr)
-library(tidyr)
-library(tibble)
+library(tidyverse)
 library(RUVSeq)
 library(IHW)
-library(Biobase)
-library(preprocessCore)
-library(EDASeq)
-library(fgsea)
-library(ggbeeswarm)
+#library(Biobase)
+#library(preprocessCore)
+#library(EDASeq)
+#library(fgsea)
+#library(ggbeeswarm)
 library(ggsci)
-library(tidyverse)
-library(EDASeq)
+#library(EDASeq)
 library(WGCNA)
 library(rhdf5)
-library(ggpubr)
-library(gridExtra)
-library(grid)
+#library(ggpubr)
+#library(gridExtra)
+#library(grid)
 library(pcaExplorer)
-library(ggrepel)
-source("objects/SampleNetwork_1.06.r")
+#library(ggrepel)
+#source("objects/SampleNetwork_1.06.r")
 source("/zfs/analysis/r_functions/deseq2_function_20190903.R")
 source("/zfs/analysis/r_functions/blinded_counts_20190906.R")
 source("/zfs/analysis/r_functions/density_plot_20190905.R")
@@ -94,13 +91,78 @@ replicate_replace = Inf
 
 Load annotation database and mouse ERCC92 tx2gene
 ```{r}
-# txdb <- makeTxDbFromGFF('/zfs/referenceGenomes/mouse/Mus_musculus.GRCm38.96.gtf')
-# k <- keys(txdb, keytype = "TXNAME")
-# tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
-# ERCC92 <- read.csv("ERCC92_names.txt", header = F)
-# ERCC92$V2 <- ERCC92$V1
-# colnames(ERCC92) <- c("TXNAME", "GENEID")
-# tx2gene_ERCC <- bind_rows(tx2gene, ERCC92)
+txdb <- makeTxDbFromGFF('/stripe/references/mouse/Mus_musculus.GRCm38.97.gtf', organism = "Mus musculus")
+columns(txdb)
+keytypes(txdb)
+
+keys <- c("ENSMUSG00000000214") #Th
+
+th_txdb <- AnnotationDbi::select(txdb, keys = keys, columns=columns(txdb), keytype="GENEID")
+GR <- transcripts(txdb)
+show(GR[1:3])
+strand(GR[1:3])
+sum(runLength(strand(GR[1:3])))
+length(GR[1:3])
+
+GR <- transcripts(txdb, filter=list(tx_chrom = "15", tx_strand = "+"))
+length(GR)
+unique(strand(GR))
+
+PR <- promoters(txdb, upstream=2000, downstream=400)
+PR
+
+EX <- exons(txdb)
+EX
+
+CD <- cds(txdb)
+CD
+
+GRList <- cdsBy(txdb, by = "gene")
+length(GRList)
+GRList
+gene_ids <- names(GRList)
+head(AnnotationDbi::select(txdb, keys=gene_ids, columns="TXNAME", keytype="GENEID"))
+
+length(intronsByTranscript(txdb))
+
+fiveUTRs <- fiveUTRsByTranscript(txdb)
+fiveUTRs
+tx_ids <- names(fiveUTRs)
+head(AnnotationDbi::select(txdb, keys=tx_ids, columns="TXNAME", keytype="TXID"))
+length(fiveUTRsByTranscript(txdb))
+
+threeUTRs <- threeUTRsByTranscript(txdb)
+threeUTRs
+tx_ids <- names(threeUTRs)
+head(AnnotationDbi::select(txdb, keys=tx_ids, columns="TXNAME", keytype="TXID"))
+length(threeUTRsByTranscript(txdb))
+
+transcripts(txdb, filter=TxidFilter("ENST00000215832"))
+
+
+available.genomes()
+Mmusculus <- getBSgenome("BSgenome.Mmusculus.UCSC.mm10", masked = FALSE)
+tx_seqs_th <- extractTranscriptSeqs(Mmusculus, TxDb.Hsapiens.UCSC.hg19.knownGene,use.names=TRUE)
+
+
+#ah <- AnnotationHub()
+unique(ah$dataprovider)
+head(unique(ah$species))
+head(unique(ah$rdataclass))
+
+query(ah, c("Mus musculus", "release-96", "TwoBitFile"))
+#ens96_mouse_dna <- ah[["AH70175"]]
+getSeq()
+
+
+
+
+
+#tx2gene <- AnnotationDbi::select(txdb, k, "GENEID", "TXNAME")
+#ERCC92 <- read.csv("ERCC92_names.txt", header = F)
+#ERCC92$V2 <- ERCC92$V1
+#colnames(ERCC92) <- c("TXNAME", "GENEID")
+#tx2gene_ERCC <- bind_rows(tx2gene, ERCC92)
 ```
 
 *Create functions for repeated code*
