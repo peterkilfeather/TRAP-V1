@@ -2,6 +2,18 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+ 
+## 10th September 2019 
+- [Sudmant, 2018](https://www.ncbi.nlm.nih.gov/pubmed/30485811) paper demonstrates age-related 3' UTR accumulation using TRAP and Gtex.
+  - Steps to use:
+    - Mapped using STAR followed by CIRCexplorer to quantify circular RNAs. STAR parameters:
+      >-chimSegmentMin 15 -chimJunctionOverhangMin 15 parameters 
+    - Generated a "termination codon ratio", defined as the log base 2 of the ratio of the mean read coverage after the annotated stop codon to the mean read coverage before the annotated stop codon.
+    - Genes were filtered to use constitutive exons of non-overlapping genes, excluding genes with multiple annotated protein coding stop codons.
+    - For plotting coverage upstream and downstream of the stop codon, coverage was normalized to windows of 1000 bins per gene (with gene structure placed below plot). The coverage value for the window with lowest coverage (per gene) was then subracted from every window and the resulting coverage was normalised to sum to 1, log transformed and smoothed using a Gaussian kernel 100 windows wide using the smth function in R smoother package. This could be done in tidyverse?
+    
+      
+
 ## 9th September 2019
 - Meeting with RWM Friday. Agenda:
   >1. Biological follow up of current TRAP data. I need to be able, on Dec 3rd at the Wellcome Trust, to demonstrate in some way that at least one exemplar of the TRAP data in the Wellcome proposal is “true”. The TRAP data is novel and exciting, but I still think a bit vulnerable to miserable naysayers.
