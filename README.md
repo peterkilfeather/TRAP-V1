@@ -3,6 +3,9 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 18th September 2019 
+- Set up REL breeding for EM perfusion: MB and STR
+
 ## 11th September 2019 
 - Aim to calculate coverage before and after stop codon of transcripts in midbrain and striatal TRAP data. Compare young and old coverage, and see if it is further changed in OVX.
 
