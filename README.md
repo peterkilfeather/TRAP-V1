@@ -3,6 +3,18 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 19th September 2019 
+- Meeting with RWM, NCR. Points:
+  - Spiking TRAP -ve lysate with GFP to determine GFP-dependent non-specific binding
+  - Doing a qPCR for 3 synaptic genes from axonal TRAP
+  - 3' UTR truncation in aged mice TRAP: How do they truncate? At a stop codon? Is aSyn truncated?
+  - Get a list of calcium channels with interest for alternative splicing
+  - Michael Coleman: Look up Nmnat2 and Sarm1 for Wallerian Degeneration relevance
+  - **Meet again in 3 weeks (11AM 11th October) with update on:
+    - Oxidative truncation
+    - Alternative splicing
+    - Motif enrichment**
+    
 ## 18th September 2019 
 - Set up REL breeding for EM perfusion: MB and STR
 
