@@ -3,6 +3,36 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 20th September 2019 
+- awk commands to select protein coding genes with one annotated stop codon from GTF file:
+```bash
+awk -F "\t" '$3 == "stop_codon" { print $9 }' Mus_musculus.GRCm38.97.gtf | tr -d ";\"" | awk -F " " '$16 ~ "protein_coding" {gene_counter[$12] += 1} END {for (gene_name in gene_counter){print gene_name, gene_counter[gene_name]}}' | awk '$2 == 1' > single_stop_codon_genes.txt
+```
+- There are 7706 out of 21688
+- In terms of exons, if you select 'ensembl_havana' supported transcripts there are 217388 'ENSMUSE...' exons:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -F "\t" '{print $9}' | tr -d "\";" | grep -oE "ENSMUSE[^[:space:]]+"
+  #217388
+  ```
+  of which 186266 are uniquely named:
+  ```
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -F "\t" '{print $9}' | tr -d "\";" | grep -oE "ENSMUSE[^[:space:]]+" | sort | uniq | wc -l
+  #186266
+  ```
+  If you take unique exons by coordinates, there are 185344:
+  ```
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; printf("%s\n", exonName)}' | sort | uniq | wc -l
+  ```
+  If you list all exons by coordinates and ENSMUSE IDs, there are 187128 unique combinations:
+  ```
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); exonID=fields[14]; printf("%s\t%s\n", exonName, exonID)}' | sort | uniq | wc -l
+  ```
+  implying some ENSMUSE IDs have multiple coordinate positions. But this is not the case:
+  ```
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); exonID=fields[14]; printf("%s\t%s\n", exonName, exonID)}' | sort | uniq | awk -F " " 'a[$3]++{print $0}' | head
+  ```
+  shows that some entries for "exon" have the ENSMUSE moved to a different position, so instead 'tag "basic"' is there.
+
 ## 19th September 2019 
 - Meeting with RWM, NCR. Points:
   - Spiking TRAP -ve lysate with GFP to determine GFP-dependent non-specific binding
