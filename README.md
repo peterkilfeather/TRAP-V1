@@ -4,35 +4,62 @@ Jakob Sca
   - See minion repo
 
 ## 20th September 2019 
-- awk commands to select protein coding genes with one annotated stop codon from GTF file:
+- awk commands to select protein coding genes with one annotated stop codon from GTF file: 21718 protein coding genes to start, of which 7736 have one annotated stop codon:
 ```bash
-awk -F "\t" '$3 == "stop_codon" { print $9 }' Mus_musculus.GRCm38.97.gtf | tr -d ";\"" | awk -F " " '$16 ~ "protein_coding" {gene_counter[$12] += 1} END {for (gene_name in gene_counter){print gene_name, gene_counter[gene_name]}}' | awk '$2 == 1' > single_stop_codon_genes.txt
+awk -F "\t" '$3 == "stop_codon" { print $9 }' Mus_musculus.GRCm38.97.gtf | grep 'gene_biotype "protein_coding"' | tr -d ";\"" |  awk '{print $2}' | sort | awk -F " " '{gene_counter[$1] += 1} END {for (gene_name in gene_counter){print gene_name, gene_counter[gene_name]}}' | sort | wc -l
+#21718
+awk -F "\t" '$3 == "stop_codon" { print $9 }' Mus_musculus.GRCm38.97.gtf | grep 'gene_biotype "protein_coding"' | tr -d ";\"" |  awk '{print $2}' | sort | awk -F " " '{gene_counter[$1] += 1} END {for (gene_name in gene_counter){print gene_name, gene_counter[gene_name]}}' | sort | awk '$2 == 1 {print $1}' > single_stop_codon_genes.txt
 ```
-- There are 7706 out of 21688
+
 - In terms of exons, if you select 'ensembl_havana' supported transcripts there are 217388 'ENSMUSE...' exons:
   ```bash
-  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -F "\t" '{print $9}' | tr -d "\";" | grep -oE "ENSMUSE[^[:space:]]+"
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -F "\t" '{print $9}' | tr -d "\";" | grep -oE "ENSMUSE[0-9]*" | wc -l
   #217388
   ```
-  of which 186266 are uniquely named:
+  same story if you awk for exon in 3rd column:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | awk '$3=="exon"' | wc -l
+  #217388
   ```
-  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -F "\t" '{print $9}' | tr -d "\";" | grep -oE "ENSMUSE[^[:space:]]+" | sort | uniq | wc -l
+  In the ENSMUSE annotation, 186266 are uniquely named, so some exons are listed more than once with the same ENSMUSE ID: (note a regexp has been used with awk's match to return the matching ENSMUSE[0-9]\*, because the exon ID field moves positions in the 9th column of GTF files)
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | awk '{print $2}' | sort | uniq | wc -l
   #186266
   ```
-  If you take unique exons by coordinates, there are 185344:
+  If you take exons by coordinates, there are 217388:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | awk '{print $1}' | sort | wc -l
+  #217388
   ```
-  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; printf("%s\n", exonName)}' | sort | uniq | wc -l
+  of which 185344 are unique:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | awk '{print $1}' | sort | uniq | wc -l
+  #185344
   ```
-  If you list all exons by coordinates and ENSMUSE IDs, there are 187128 unique combinations:
+  So there are more unique ENSMUSE IDs than actual coordinate exons. 
+  If you list all exons by coordinates and ENSMUSE IDs and find duplicate coordinate rows, there are 922, explaining the difference:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | uniq | awk '{print $1}' | sort | awk 'c[$1]++; c[$1]>=2' | sort | tail
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | uniq | awk '{print $0}' | grep X:73351809:73351923:+
+  #X:73351809:73351923:+    ENSMUSE00001211455
+  #X:73351809:73351923:+    ENSMUSE00001214437
   ```
-  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); exonID=fields[14]; printf("%s\t%s\n", exonName, exonID)}' | sort | uniq | wc -l
+  Build a list of constitutive exon IDs:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); geneName=fields[1]; transcriptName=fields[3]; match($0, /ENSMUSE[0-9]*/); printf("%s\t%s\t%s\t%s\n",exonName,geneName,transcriptName, substr($0, RSTART, RLENGTH)); }' | sort | uniq | awk -v FS='\t' '{ eCount[$4]++; tCount[$3]++; exonHost[$4]=$2; if(tCount[$3]==1) gCount[$2]++; } END { for(i in eCount) if(eCount[i]==gCount[exonHost[i]]) { print $4 }}' > constitutive_exons.gtf
+  wc -l constitutive_exons.gtf
+  #168908 constitutive_exons.gtf
   ```
-  implying some ENSMUSE IDs have multiple coordinate positions. But this is not the case:
+  and non-constitutive exon IDs:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); geneName=fields[1]; transcriptName=fields[3]; match($0, /ENSMUSE[0-9]*/); printf("%s\t%s\t%s\t%s\n",exonName,geneName,transcriptName, substr($0, RSTART, RLENGTH)); }' | sort | uniq | awk -v FS='\t' '{ eCount[$4]++; tCount[$3]++; exonHost[$4]=$2; if(tCount[$3]==1) gCount[$2]++; } END { for(i in eCount) if(eCount[i]!=gCount[exonHost[i]]) { print $4 }}' > non_constitutive_exons.gtf
+  wc -l non_constitutive_exons.gtf
+  #17358 non_constitutive_exons.gtf
   ```
-  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); exonID=fields[14]; printf("%s\t%s\n", exonName, exonID)}' | sort | uniq | awk -F " " 'a[$3]++{print $0}' | head
+  Build a GTF containing excluding multi-stop codon genes and non-constitutive exons: (Just filtering for single stop codon genes removes non-constitutive exons)
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'gene_biotype "protein_coding"' | grep -f single_stop_codon_genes.txt  | grep -vf non_constitutive_exons.gtf > mus_ensembl_97_protcod_singlestop_constitexons.gtf
   ```
-  shows that some entries for "exon" have the ENSMUSE moved to a different position, so instead 'tag "basic"' is there.
-
 ## 19th September 2019 
 - Meeting with RWM, NCR. Points:
   - Spiking TRAP -ve lysate with GFP to determine GFP-dependent non-specific binding
