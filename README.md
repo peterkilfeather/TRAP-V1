@@ -2,6 +2,11 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+  
+  
+## 26th September 2019
+- Work has focussed on building a python pipeline to count reads mapping in each GTF interval for CDS and three prime utrs of filtered genes (described in 20th September section).
+- Currently have number of reads per sample per interval. For each sample, need to condense all CDS into one CDS per gene with a total length and total number of reads. Same goes for three prime utr. Any genes without a three prime utr will be excluded. Then the coverage for each region will be multiplied by (1/length) and the UTR value will be divided by the CDS value and this output will be summarised to log base 2.
 
 ## 20th September 2019 
 - awk commands to select protein coding genes with one annotated stop codon from GTF file: 21718 protein coding genes to start, of which 7736 have one annotated stop codon:
