@@ -3,6 +3,13 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
   
+## 29th September 2019
+- Worked on getting 'ARMOR' (Soneson) snakemake pipeline working for RNA QC/mapping. Definitely need to look at RNASEQQC package for alternative splicing saturation analysis.
+- Command to rsync file to EC2 instance:
+  ```bash
+  rsync -Pav Mus_musculus.GRCm38.dna.primary_assembly.ERCC92.hSNCA_20190924.fa -e "ssh -i /home/peter/.ssh/nanopore.pem" ubuntu@ec2-18-130-156-211.eu-west-2.compute.amazonaws.com:/nanopore/
+  ```
+
   
 ## 26th September 2019
 - Work has focussed on building a python pipeline to count reads mapping in each GTF interval for CDS and three prime utrs of filtered genes (described in 20th September section).
