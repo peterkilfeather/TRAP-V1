@@ -3,6 +3,17 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
   
+## 1st-10th October 2019
+- Work on establishing pipeline to quantify 3' UTR:CDS ratio for protein coding genes with constitutive exons. Validated Sudmant results succesfully, showing D1 neuron-specific aging change in ratio. Application of pipeline to TRAP MB/STR data shows now major global change. Worth investigating differential ratios of genes between conditions
+- To identify axon/dendrite localisation signals, have been reading [Comprehensive catalog of dendritically localized mRNA isoforms from sub-cellular sequencing of single mouse neurons](https://bmcbiol.biomedcentral.com/articles/10.1186/s12915-019-0630-z#MOESM7).
+  - To quantify isoform-level expression:
+    - Use the last 500 nt of 3' end of gene as isoform quantification feature. This normalises length differences between 3' UTRs ( + the majority of their reads mapped within 500 nt of the 3' end). 3' ends less than 500 nt apart were merged into a single quantification feature, resulting in non-overlapping features. Genes with only one expressed 3' isoform were removed from analysis. In their case, most reads fell within 500 nt of the 3' end, so for genes with a 3' UTR >500 ng in length, these criteria avoid counting reads mapping to regions where the coverage will be low because of 3' bias. In our TRAP data, the 3' bias is..., so an alternative strategy is to simply map to each 3' UTR and calculated the length-normalised coverage of said feature.
+    - Count how many 3' UTRs are present in the annotation per gene
+    - Count how many 3' UTRs are expressed (reads > 0 in x/total samples)
+    - Calculate length-normalised coverage of each 3' UTR
+    - Calculate total number of reads across all 3' UTRs per gene
+    - Calculate fraction of total reads per 3' UTR
+  
 ## 29th September 2019
 - Worked on getting 'ARMOR' (Soneson) snakemake pipeline working for RNA QC/mapping. Definitely need to look at RNASEQQC package for alternative splicing saturation analysis.
 - Command to rsync file to EC2 instance:
