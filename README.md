@@ -2,7 +2,105 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
- 
+  
+## 1st-10th October 2019
+- Work on establishing pipeline to quantify 3' UTR:CDS ratio for protein coding genes with constitutive exons. Validated Sudmant results succesfully, showing D1 neuron-specific aging change in ratio. Application of pipeline to TRAP MB/STR data shows now major global change. Worth investigating differential ratios of genes between conditions
+- To identify axon/dendrite localisation signals, have been reading [Comprehensive catalog of dendritically localized mRNA isoforms from sub-cellular sequencing of single mouse neurons](https://bmcbiol.biomedcentral.com/articles/10.1186/s12915-019-0630-z#MOESM7).
+  - To quantify isoform-level expression:
+    - Use the last 500 nt of 3' end of gene as isoform quantification feature. This normalises length differences between 3' UTRs ( + the majority of their reads mapped within 500 nt of the 3' end). 3' ends less than 500 nt apart were merged into a single quantification feature, resulting in non-overlapping features. Genes with only one expressed 3' isoform were removed from analysis. In their case, most reads fell within 500 nt of the 3' end, so for genes with a 3' UTR >500 ng in length, these criteria avoid counting reads mapping to regions where the coverage will be low because of 3' bias. In our TRAP data, the 3' bias is..., so an alternative strategy is to simply map to each 3' UTR and calculated the length-normalised coverage of said feature.
+    - Count how many 3' UTRs are present in the annotation per gene
+    - Count how many 3' UTRs are expressed (reads > 0 in x/total samples)
+    - Calculate length-normalised coverage of each 3' UTR
+    - Calculate total number of reads across all 3' UTRs per gene
+    - Calculate fraction of total reads per 3' UTR
+  
+## 29th September 2019
+- Worked on getting 'ARMOR' (Soneson) snakemake pipeline working for RNA QC/mapping. Definitely need to look at RNASEQQC package for alternative splicing saturation analysis.
+- Command to rsync file to EC2 instance:
+  ```bash
+  rsync -Pav Mus_musculus.GRCm38.dna.primary_assembly.ERCC92.hSNCA_20190924.fa -e "ssh -i /home/peter/.ssh/nanopore.pem" ubuntu@ec2-18-130-156-211.eu-west-2.compute.amazonaws.com:/nanopore/
+  ```
+
+  
+## 26th September 2019
+- Work has focussed on building a python pipeline to count reads mapping in each GTF interval for CDS and three prime utrs of filtered genes (described in 20th September section).
+- Currently have number of reads per sample per interval. For each sample, need to condense all CDS into one CDS per gene with a total length and total number of reads. Same goes for three prime utr. Any genes without a three prime utr will be excluded. Then the coverage for each region will be multiplied by (1/length) and the UTR value will be divided by the CDS value and this output will be summarised to log base 2.
+
+## 20th September 2019 
+- awk commands to select protein coding genes with one annotated stop codon from GTF file: 21718 protein coding genes to start, of which 7736 have one annotated stop codon:
+```bash
+awk -F "\t" '$3 == "stop_codon" { print $9 }' Mus_musculus.GRCm38.97.gtf | grep 'gene_biotype "protein_coding"' | tr -d ";\"" |  awk '{print $2}' | sort | awk -F " " '{gene_counter[$1] += 1} END {for (gene_name in gene_counter){print gene_name, gene_counter[gene_name]}}' | sort | wc -l
+#21718
+awk -F "\t" '$3 == "stop_codon" { print $9 }' Mus_musculus.GRCm38.97.gtf | grep 'gene_biotype "protein_coding"' | tr -d ";\"" |  awk '{print $2}' | sort | awk -F " " '{gene_counter[$1] += 1} END {for (gene_name in gene_counter){print gene_name, gene_counter[gene_name]}}' | sort | awk '$2 == 1 {print $1}' > single_stop_codon_genes.txt
+```
+
+- In terms of exons, if you select 'ensembl_havana' supported transcripts there are 217388 'ENSMUSE...' exons:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -F "\t" '{print $9}' | tr -d "\";" | grep -oE "ENSMUSE[0-9]*" | wc -l
+  #217388
+  ```
+  same story if you awk for exon in 3rd column:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | awk '$3=="exon"' | wc -l
+  #217388
+  ```
+  In the ENSMUSE annotation, 186266 are uniquely named, so some exons are listed more than once with the same ENSMUSE ID: (note a regexp has been used with awk's match to return the matching ENSMUSE[0-9]\*, because the exon ID field moves positions in the 9th column of GTF files)
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | awk '{print $2}' | sort | uniq | wc -l
+  #186266
+  ```
+  If you take exons by coordinates, there are 217388:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | awk '{print $1}' | sort | wc -l
+  #217388
+  ```
+  of which 185344 are unique:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | awk '{print $1}' | sort | uniq | wc -l
+  #185344
+  ```
+  So there are more unique ENSMUSE IDs than actual coordinate exons. 
+  If you list all exons by coordinates and ENSMUSE IDs and find duplicate coordinate rows, there are 922, explaining the difference:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | uniq | awk '{print $1}' | sort | awk 'c[$1]++; c[$1]>=2' | sort | tail
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' match($0, /ENSMUSE[0-9]*/) { exonName=$1":"$4":"$5":"$7; print(exonName, "\t", substr($0, RSTART, RLENGTH))}' | sort | uniq | awk '{print $0}' | grep X:73351809:73351923:+
+  #X:73351809:73351923:+    ENSMUSE00001211455
+  #X:73351809:73351923:+    ENSMUSE00001214437
+  ```
+  Build a list of constitutive exon IDs:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); geneName=fields[1]; transcriptName=fields[3]; match($0, /ENSMUSE[0-9]*/); printf("%s\t%s\t%s\t%s\n",exonName,geneName,transcriptName, substr($0, RSTART, RLENGTH)); }' | sort | uniq | awk -v FS='\t' '{ eCount[$4]++; tCount[$3]++; exonHost[$4]=$2; if(tCount[$3]==1) gCount[$2]++; } END { for(i in eCount) if(eCount[i]==gCount[exonHost[i]]) { print $4 }}' > constitutive_exons.gtf
+  wc -l constitutive_exons.gtf
+  #168908 constitutive_exons.gtf
+  ```
+  and non-constitutive exon IDs:
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'transcript_source "ensembl_havana"' | grep 'ENSMUSE' | awk -v FS='\t' ' { exonName=$1":"$4":"$5":"$7; split($9, fields, ";"); geneName=fields[1]; transcriptName=fields[3]; match($0, /ENSMUSE[0-9]*/); printf("%s\t%s\t%s\t%s\n",exonName,geneName,transcriptName, substr($0, RSTART, RLENGTH)); }' | sort | uniq | awk -v FS='\t' '{ eCount[$4]++; tCount[$3]++; exonHost[$4]=$2; if(tCount[$3]==1) gCount[$2]++; } END { for(i in eCount) if(eCount[i]!=gCount[exonHost[i]]) { print $4 }}' > non_constitutive_exons.gtf
+  wc -l non_constitutive_exons.gtf
+  #17358 non_constitutive_exons.gtf
+  ```
+  Build a GTF containing excluding multi-stop codon genes and non-constitutive exons: (Just filtering for single stop codon genes removes non-constitutive exons)
+  ```bash
+  cat Mus_musculus.GRCm38.97.gtf | grep 'gene_biotype "protein_coding"' | grep -f single_stop_codon_genes.txt  | grep -vf non_constitutive_exons.gtf > mus_ensembl_97_protcod_singlestop_constitexons.gtf
+  ```
+## 19th September 2019 
+- Meeting with RWM, NCR. Points:
+  - Spiking TRAP -ve lysate with GFP to determine GFP-dependent non-specific binding
+  - Doing a qPCR for 3 synaptic genes from axonal TRAP
+  - 3' UTR truncation in aged mice TRAP: How do they truncate? At a stop codon? Is aSyn truncated?
+  - Get a list of calcium channels with interest for alternative splicing
+  - Michael Coleman: Look up Nmnat2 and Sarm1 for Wallerian Degeneration relevance
+  - **Meet again in 3 weeks (11AM 11th October) with update on:**
+    - Oxidative truncation
+    - Alternative splicing
+    - Motif enrichment
+    
+## 18th September 2019 
+- Set up REL breeding for EM perfusion: MB and STR
+
+## 11th September 2019 
+- Aim to calculate coverage before and after stop codon of transcripts in midbrain and striatal TRAP data. Compare young and old coverage, and see if it is further changed in OVX.
+
 ## 10th September 2019 
 - [Sudmant, 2018](https://www.ncbi.nlm.nih.gov/pubmed/30485811) paper demonstrates age-related 3' UTR accumulation using TRAP and Gtex.
   - Steps to use:
@@ -12,8 +110,6 @@ Jakob Sca
     - Genes were filtered to use constitutive exons of non-overlapping genes, excluding genes with multiple annotated protein coding stop codons.
     - For plotting coverage upstream and downstream of the stop codon, coverage was normalized to windows of 1000 bins per gene (with gene structure placed below plot). The coverage value for the window with lowest coverage (per gene) was then subracted from every window and the resulting coverage was normalised to sum to 1, log transformed and smoothed using a Gaussian kernel 100 windows wide using the smth function in R smoother package. This could be done in tidyverse?
     
-      
-
 ## 9th September 2019
 - Meeting with RWM Friday. Agenda:
   >1. Biological follow up of current TRAP data. I need to be able, on Dec 3rd at the Wellcome Trust, to demonstrate in some way that at least one exemplar of the TRAP data in the Wellcome proposal is “true”. The TRAP data is novel and exciting, but I still think a bit vulnerable to miserable naysayers.
