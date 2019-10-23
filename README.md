@@ -3,6 +3,19 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
   
+## 23rd October 2019
+- Marina Chekulaeva: RNA localisation in neurons. protein transport, mrna localisaiton and local translation efficiency  (3 mechs to subcellular protein localisaiton). Microporous membrane to separate mESC neurons body from downward growing axons/dendrites.Neurite localised mRNA and proteins (range >1 to >2.5 log2 FC. 
+- Zipcode: cis-element in RNA in 3' UTR to mediate localisation. Recruit RBP to tether to motor protein and regulate localisaiton or translation stability/efficiency. Also miRNA binding sites and RNA modifications
+- Nzip protocol: neurite soma separation protocol: pool of tiled RNA oligos to tile 3' UTRS ; make cDNA, clone into vector library, transfect and RNAseq to identify which fragments mediate neurite RNA localisation.
+- Out of 20000 detected isoforms, 4000 are neurite enriched
+- Cdc42 GTPase: cytoskeletal dynamics: 2 isoforms in humans with alternative last exon (exon 6 or exon 7). Two proteins produced: Different functions; 7 has more axon specification, 6 more soma. Last ten amino acids differ. mCherry targeted E7 utr transfected to check localisation. E6 and more soma than neurite (reversed 7). Puro-PLA: visualise local translation: van Dieck 2015). 
+- RNA affinity capture + SILAC to take the two 3' UTRs, incubate with lysates and measure lights peaks to identify proteins that preferentially bind each 3' UTR isoform. Qki, Ptbp2, two splicing factors have binding affinity to E7. 
+- Localised RBPs: Proteomics data of neurites/soma: find 29 RBPs enriched in neurites. Some known to be important for RNA localisation, so others suspected to be. PAR-CLIP of localised RBP: sequence the RNA bound to the RBPs. Also generate RBP knockouts and see how RNA distributions changes in soma/neurite separation model. 
+- Nxf7 knockout increases neurite expression of several synaptic genes, including Snca. Soma not as affected. 
+- PAR-CLIP with flag tagged Nxf7 for identifying all targets.
+- MiRNAs in RNA localisation and local translation stability/efficiency: miRNA expression analysis of neurites/soma. 150 that are more present in neurites than soma. AGO-CLIP (argonaut) to IP argonaut, sequence what is bound - use dominant negative form of protein that interacts with argonaut and recruits polyadneylation complex: use short peptide to bind argonaut but not bind ccr4 = dominant negative block of miRNA expression. Then increase expression of RNA hook to relieve block. AGO-hook works better than AGO antibody for CLIP. 
+- Mutations in RBPs: SMN1, TDP-43, FUS: RBPs that are implicated in motor neuron disorders. Induce these mutations and identify factors that induce changes in RNA localisation across multiple models. JPND consortium
+  
 ## 1st-10th October 2019
 - Work on establishing pipeline to quantify 3' UTR:CDS ratio for protein coding genes with constitutive exons. Validated Sudmant results succesfully, showing D1 neuron-specific aging change in ratio. Application of pipeline to TRAP MB/STR data shows now major global change. Worth investigating differential ratios of genes between conditions
 - To identify axon/dendrite localisation signals, have been reading [Comprehensive catalog of dendritically localized mRNA isoforms from sub-cellular sequencing of single mouse neurons](https://bmcbiol.biomedcentral.com/articles/10.1186/s12915-019-0630-z#MOESM7).
