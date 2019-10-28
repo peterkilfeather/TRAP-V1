@@ -2,7 +2,10 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
-  
+## 28th October 2019
+- [Google Slides of Figures](https://docs.google.com/presentation/d/1DEyPslen4YshVAra9fRdYCM5koILknd5MapfkIGl8G0/edit?usp=sharing)
+- Done three comparisons of DS/VS vs MB (2-fold, 4-fold and 8-fold cut-offs). The axon vs MB = all DS vs MB genes that are also VS vs MB, not DS+VS vs MB DESeq2 comparison. Only included genes that are IP vs Input enriched. At the 2-fold striatum vs MB level, 11/107 PD GWAS genes (from [Nalls, 2019](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwjl-cGB777lAhXyQkEAHYROAcAQFjAAegQIAhAB&url=https%3A%2F%2Fwww.biorxiv.org%2Fcontent%2F10.1101%2F388165v2&usg=AOvVaw3j3ES6ys5-3TjxHKVay13h)) are dorsally enriched vs MB. 8 are ventrally enriched vs MB. CHD9, CTSB, KPNA1 are the dorsal only enriched GWAS genes.
+
 ## 23rd October 2019
 - Marina Chekulaeva: RNA localisation in neurons. protein transport, mrna localisaiton and local translation efficiency  (3 mechs to subcellular protein localisaiton). Microporous membrane to separate mESC neurons body from downward growing axons/dendrites.Neurite localised mRNA and proteins (range >1 to >2.5 log2 FC. 
 - Zipcode: cis-element in RNA in 3' UTR to mediate localisation. Recruit RBP to tether to motor protein and regulate localisaiton or translation stability/efficiency. Also miRNA binding sites and RNA modifications
