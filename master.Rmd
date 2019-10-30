@@ -41,9 +41,10 @@ library(rhdf5)
 #library(gridExtra)
 #library(grid)
 library(pcaExplorer)
+library(readxl)
 #library(ggrepel)
 #source("objects/SampleNetwork_1.06.r")
-source("/zfs/analysis/r_functions/deseq2_function_20190903.R")
+source("/zfs/analysis/r_functions/deseq2_function.R")
 source("/zfs/analysis/r_functions/blinded_counts_20190906.R")
 source("/zfs/analysis/r_functions/density_plot_20190905.R")
 source("/zfs/analysis/r_functions/dopa_counts_20190906.R")
@@ -68,13 +69,14 @@ skip_pcaExplorer = T
 
 **Create sample metadata tibbles**
 ```{r}
-p_pseudoaligned <- read.csv(file.path(base_dir, 'metadata/p_pseudoaligned_trap_20190905.txt'), sep = '\t', header = T) %>%
+p_pseudoaligned <- read.csv(file.path(base_dir, 'metadata/p_pseudoaligned_trap_20190905.txt'), sep = '\t', header = T, stringsAsFactors = F) %>%
   as_tibble()
 
-sample_metadata <- read.csv(file.path(base_dir, 'metadata/sample_metadata_110719.csv'), header = T) %>%
+sample_metadata <- read.csv(file.path(base_dir, 'metadata/sample_metadata_110719.csv'), header = T, stringsAsFactors = F) %>%
   as_tibble() %>%
   inner_join(p_pseudoaligned, by = c("sample_code" = "sample")) %>%
-  mutate(align_rank=rank(p_pseudoaligned)/length(p_pseudoaligned))
+  mutate(align_rank=rank(p_pseudoaligned)/length(p_pseudoaligned)) %>%
+  mutate(sample_code = as.character(sample_metadata$sample_code))
 
 sample_metadata_kw_batch_2 <- sample_metadata %>% 
   as_tibble() %>%
@@ -237,6 +239,8 @@ library(rtracklayer)
 #colnames(ERCC92) <- c("TXNAME", "GENEID")
 #tx2gene_ERCC <- bind_rows(tx2gene, ERCC92)
 ```
+
+Coverage ratios
 ```{r}
 coverage_ratio <- read.csv("/zfs/analysis/pk_trap/r_master/objects/coverage_ratios.csv", header = T)
 
@@ -266,7 +270,7 @@ ggplot(coverage_ratio_ip, aes(ratio, fill = sample_name, colour = age)) +
       theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
       ylab("Density") +
       xlab("Termination codon ratio") +
-      facet_grid(rows = vars(eval(as.name(facet_factor))))
+      facet_grid(rows = vars(eval(as.name(facet_factor_y))))
 
 ggplot(coverage_ratio_ip, aes(ratio, fill = sample_name, colour = age)) + 
   stat_ecdf(geom = "step") + 
@@ -301,6 +305,7 @@ coverage_ratio_ip_mb_batch2 %>% filter(gene %in% old_not_young_genes)
 
 ```
 
+Coverage ratios validation
 ```{r}
 coverage_ratio_sudmant <- read.csv("/stripe/sudmant/coverage_ratios_annotated.csv", header = T)
 
@@ -337,6 +342,7 @@ write.csv(genes, file = "over_five_ratio.csv")
 
 ```
 
+UTRs per gene
 ```{r}
 utr_per_gene <- read.csv("/zfs/analysis/pk_trap/r_master/objects/utr_per_gene.csv", header = F)
 p <- ggplot(utr_per_gene, aes(x=V2)) + 
@@ -346,7 +352,7 @@ p <- ggplot(utr_per_gene, aes(x=V2)) +
 p
 ```
 
-*Create functions for repeated code*
+*DESeq2 function: deprecated*
 ```{r}
 #run_deseq <- function() {
   #subset sample metadata
@@ -485,16 +491,57 @@ facet_factor = "HGNC.symbol"
 run_dopaCounts()
 
 ```
-Striatum IP Outlier Evidence
+Striatum IP Outlier Decisions
 ```{r fig.height = 4, fig.width = 8}
 
-name = 'pk_batch_1_ip_striatum'
-metadata_filter = "batch_trap %in% c('b3') & ip == 'ip' & region != 'mb'"
-batch_correct = F
-batch = 'region'
-skip_pcaExplorer = F
+#Dorsal
+name = 'pk_batch_1_ip_ds'
+metadata_filter = "batch_trap %in% c('b3') & ip == 'ip' & region == 'ds' & outlier == 'n'"
 
 run_blindedCounts()
+
+#adjust for batch
+batch = 'collection_day'
+mat <- assay(eval(as.name(paste("vsd_", name, sep = ""))))
+mat <- limma::removeBatchEffect(mat, eval(as.name(paste("sample_metadata", name, sep = "_")))[[batch]])
+assign(paste('vsd', name, batch, 'corrected', sep = '_'), envir = .GlobalEnv, mat)
+mat <- eval(as.name(paste("counts_", name, sep = "")))
+mat <- limma::removeBatchEffect(mat, eval(as.name(paste("sample_metadata", name, sep = "_")))[[batch]])
+assign(paste('counts', name, batch, 'corrected', sep = '_'), envir = .GlobalEnv, mat)
+
+#PCA explorer
+pcaExplorer(eval(as.name(paste("dds_", name, sep = ""))), eval(as.name(paste("vsd_", name, sep = ""))))
+
+#PCA no batch correction
+matrix_high_var <- assay(eval(as.name(paste("vsd_", name, sep = "")))) %>% #Select all genes and transpose
+  t()
+matrix_high_var <- assay(eval(as.name(paste("vsd_", name, sep = ""))))[rowVars(assay(eval(as.name(paste("vsd_", name, sep = ""))))) >= quantile(rowVars(assay(eval(as.name(paste("vsd_", name, sep = ""))))), 0.75), ] %>% #Select top quartile of variance and transpose
+  t()
+
+rv <- rowVars(assay(eval(as.name(paste("vsd_", name, sep = ""))))) #Calculate row variance
+top_n <- 300 #Top n genes
+select <- order(rv, decreasing = T)[1:300] #Select top n genes
+matrix_high_var <- assay(eval(as.name(paste("vsd_", name, sep = ""))))[select, ] %>% #Select and transpose top n vsd genes
+  t()
+
+pc <- prcomp(matrix_high_var, scale=T) #Calculate PCs
+var_explained <- pc$sdev^2/sum(pc$sdev^2) #Calculate PC variance
+
+pc$x %>% #Plot PCs
+  as.data.frame() %>%
+  rownames_to_column("sample_name") %>%
+  inner_join(sample_metadata, by = c("sample_name" = "sample_name")) %>%
+  ggplot(aes(x=PC1,y=PC2, label = sample_name, color = age)) + 
+  geom_point(aes(color=age),size=4) +
+  labs(x=paste0("PC1: ",round(var_explained[1]*100,1),"%"),
+       y=paste0("PC2: ",round(var_explained[2]*100,1),"%")) +
+  theme(legend.position="top") +
+  # geom_label(aes(fill = age), colour = "white", fontface = "bold") +
+  theme_bw() +
+  # theme(legend.position="top") +
+  scale_color_lancet() + 
+  scale_fill_lancet() 
+
 
 #Density plot facet
 facet = T
@@ -516,13 +563,29 @@ run_dopaCounts()
 ```{r}
 name = 'axon_ip_vs_mb_ip'
 
-metadata_filter = "ip == 'ip' & batch_trap %in% c('b3')"
+metadata_filter = "ip == 'ip'  & outlier == 'n' & batch_trap %in% c('b3')"
 
 design = ~ collection_day + age + axon
 
-min_counts = 100
+min_counts = 10
 
 reference_column <- 'axon'
+reference_level <- 'mb'
+
+run_deseq()
+```
+
+**Dorsal Striatum IP vs Midbrain IP**
+```{r}
+name = 'ds_ip_vs_mb_ip'
+
+metadata_filter = "ip == 'ip' & outlier == 'n' & batch_trap %in% c('b3')"
+
+design <- ~ collection_day + age + region
+
+min_counts = 10
+
+reference_column <- 'region'
 reference_level <- 'mb'
 
 run_deseq()
@@ -532,7 +595,7 @@ run_deseq()
 ```{r}
 name = 'axon_ub_vs_mb_ub'
 
-metadata_filter = "ip == 'input' & batch_trap %in% c('b2','b3')"
+metadata_filter = "ip == 'input' & batch_trap %in% c('b2','b3') & outlier == 'n'"
 
 design <- ~ batch_trap + age + axon
 
@@ -548,7 +611,7 @@ run_deseq()
 ```{r}
 name = 'axon_ip_vs_axon_ub'
 
-metadata_filter = "axon == 'axon'"
+metadata_filter = "axon == 'axon' & outlier == 'n'"
 
 design <- ~ age + ip
 
@@ -564,7 +627,7 @@ run_deseq()
 ```{r}
 name = 'mb_ip_vs_mb_ub'
 
-metadata_filter = "axon == 'mb' & batch_trap %in% c('b2', 'b3')"
+metadata_filter = "axon == 'mb' & batch_trap %in% c('b2', 'b3') & outlier == 'n'"
 
 design <- ~ batch_trap + age + ip
 
@@ -580,11 +643,11 @@ run_deseq()
 ```{r}
 name = 'ds_ip_vs_vs_ip'
 
-metadata_filter = "axon == 'axon' & ip == 'ip'"
+metadata_filter = "axon == 'axon' & ip == 'ip' & outlier == 'n'"
 
 design <- ~ collection_day + age + region
 
-min_counts = 100
+min_counts = 10
 
 reference_column <- 'region'
 reference_level <- 'vs'
@@ -596,7 +659,7 @@ run_deseq()
 ```{r}
 name = 'ds_ub_vs_vs_ub'
 
-metadata_filter = "axon == 'axon' & ip == 'input'"
+metadata_filter = "axon == 'axon' & ip == 'input' & outlier == 'n'"
 
 design = ~ collection_day + age + region
 
@@ -612,7 +675,7 @@ run_deseq()
 ```{r}
 name = 'ds_ip_vs_ds_ub'
 
-metadata_filter = "region == 'ds'"
+metadata_filter = "region == 'ds' & outlier == 'n'"
 
 design = ~ age + ip
 
@@ -628,7 +691,7 @@ run_deseq()
 ```{r}
 name = 'vs_ip_vs_vs_ub'
 
-metadata_filter = "region == 'vs'"
+metadata_filter = "region == 'vs' & outlier == 'n'"
 
 design = ~ age + ip
 
@@ -638,6 +701,372 @@ reference_column <- 'ip'
 reference_level <- 'input'
 
 run_deseq()
+```
+
+**Dorsal Striatum IP vs Midbrain**
+```{r}
+name = 'ds_ip_vs_mb_ip'
+
+metadata_filter = "region %in% c('ds', 'mb') & ip == 'ip' & outlier == 'n' & batch_trap %in% c('b3')"
+
+design <- ~ collection_day + age + region
+
+min_counts = 10
+
+reference_column <- 'region'
+reference_level <- 'mb'
+
+run_deseq()
+```
+
+**Ventral Striatum IP vs Midbrain**
+```{r}
+name = 'vs_ip_vs_mb_ip'
+
+metadata_filter = "region %in% c('vs', 'mb') & ip == 'ip' & outlier == 'n' & batch_trap %in% c('b3')"
+
+design <- ~ collection_day + age + region
+
+min_counts = 10
+
+reference_column <- 'region'
+reference_level <- 'mb'
+
+run_deseq()
+```
+
+**Identifying region specific genes - October 2019**
+```{r}
+enrichment_cutoff = 1
+
+#Collect genes enriched in ip
+ds_up_ip <- res_output_ds_ip_vs_ds_ub %>%
+  filter(padj < 0.01 & log2FoldChange > 0)
+vs_up_ip <- res_output_vs_ip_vs_vs_ub %>%
+  filter(padj < 0.01 & log2FoldChange > 0)
+axon_up_ip <- ds_up_ip %>%
+  filter(gene %in% vs_up_ip$gene)
+mb_up_ip <- res_output_mb_ip_vs_mb_ub %>%
+  filter(padj < 0.01 & log2FoldChange > 0)
+
+#Collect genes depleted in ip
+ds_down_ip <- res_output_ds_ip_vs_ds_ub %>%
+  filter(padj < 0.01 & log2FoldChange < 0)
+vs_down_ip <- res_output_vs_ip_vs_vs_ub %>%
+  filter(padj < 0.01 & log2FoldChange < 0)
+axon_down_ip <- ds_down_ip %>%
+  filter(gene %in% vs_down_ip$gene)
+mb_down_ip <- res_output_mb_ip_vs_mb_ub %>%
+  filter(padj < 0.01 & log2FoldChange < 0)
+
+#Collect genes regionally enriched (ds/vs/mb)
+
+ds_vs_mb_enriched <- res_output_ds_ip_vs_mb_ip %>%
+  filter(gene %in% ds_up_ip$gene & log2FoldChange > enrichment_cutoff & padj < 0.01)
+vs_vs_mb_enriched <- res_output_vs_ip_vs_mb_ip %>%
+  filter(gene %in% vs_up_ip$gene & log2FoldChange > enrichment_cutoff & padj < 0.01)
+axon_vs_mb_enriched <- ds_vs_mb_enriched %>%
+  filter(gene %in% vs_vs_mb_enriched$gene)
+mb_vs_ds_enriched <- res_output_ds_ip_vs_mb_ip %>%
+  filter(gene %in% mb_up_ip$gene & log2FoldChange < -enrichment_cutoff & padj < 0.01)
+mb_vs_vs_enriched <- res_output_vs_ip_vs_mb_ip %>%
+  filter(gene %in% mb_up_ip$gene & log2FoldChange < -enrichment_cutoff & padj < 0.01)
+mb_vs_axon_enriched <- mb_vs_ds_enriched %>% filter(gene %in% mb_vs_vs_enriched$gene)
+
+# write.table(ds_vs_mb_enriched, file = paste(file.path(base_dir, output_dir), '/', 'ds_vs_mb_enriched', '.csv', sep = ''))
+# write.table(vs_vs_mb_enriched, file = paste(file.path(base_dir, output_dir), '/', 'vs_vs_mb_enriched', '.csv', sep = ''))
+# write.table(axon_vs_mb_enriched, file = paste(file.path(base_dir, output_dir), '/', 'axon_vs_mb_enriched', '.csv', sep = ''))
+# write.table(mb_vs_ds_enriched, file = paste(file.path(base_dir, output_dir), '/', 'mb_vs_ds_enriched', '.csv', sep = ''))
+# write.table(mb_vs_vs_enriched, file = paste(file.path(base_dir, output_dir), '/', 'mb_vs_vs_enriched', '.csv', sep = ''))
+# write.table(mb_vs_axon_enriched, file = paste(file.path(base_dir, output_dir), '/', 'mb_vs_axon_enriched', '.csv', sep = ''))
+
+# listMarts()
+# ensembl <- useMart("ensembl")      
+# datasets <- listDatasets(ensembl)
+# ensembl = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+# ids <- axon_vs_mb_enriched$gene
+# axon_background_ids <- axon_up_ip$gene
+# axon_vs_mb_enriched_utr3 = getSequence(id = ids,
+#                    type="ensembl_gene_id",
+#                    seqType="3utr", 
+#                    mart=ensembl) %>% 
+#   group_by(ensembl_gene_id) %>% 
+#   mutate(id = paste(ensembl_gene_id, row_number(), sep = '')) %>%
+#   ungroup() %>%
+#   select('3utr', id) %>% 
+#   rename('ensembl_gene_id' = id) %>%
+#   as.data.frame()
+# 
+# 
+# axon_background_utr3 = getSequence(id = axon_background_ids,
+#                    type="ensembl_gene_id",
+#                    seqType="3utr", 
+#                    mart=ensembl) %>% 
+#   group_by(ensembl_gene_id) %>% 
+#   mutate(id = paste(ensembl_gene_id, row_number(), sep = '')) %>%
+#   ungroup() %>%
+#   select('3utr', id) %>% 
+#   rename('ensembl_gene_id' = id) %>%
+#   as.data.frame()
+# 
+# exportFASTA(axon_vs_mb_enriched_utr3, file = paste(file.path(base_dir, output_dir), '/', 'axon_vs_mb_enriched_utr3', '.fa', sep = ''))
+# exportFASTA(axon_background_utr3, file = paste(file.path(base_dir, output_dir), '/', 'axon_background_utr3', '.fa', sep = ''))
+
+#Import GWAS PD data from Nalls, 2019 BioArxiv paper
+nalls <- read_excel("../../objects/nalls_2019/Table S2. Detailed summary statistics on all nominated risk variants, known and novel_.xlsx") %>%
+  top_n(107)
+# ensembl_snp <- useMart("ENSEMBL_MART_SNP")
+# datasets <- listDatasets(ensembl_snp)
+# ensembl_snp = useMart("ENSEMBL_MART_SNP", dataset="hsapiens_snp")
+# attributes <- listAttributes(ensembl_snp)
+# filters <- listFilters(ensembl_snp)
+# nalls_snp_info0 <- getBM(attributes = c(
+#   "refsnp_id", 
+#   "chr_name", 
+#   "chrom_start", 
+#   "chrom_end", 
+#   "allele", 
+#   "mapweight", 
+#   "validated", 
+#   "allele_1", 
+#   "minor_allele", 
+#   "minor_allele_freq", 
+#   "minor_allele_count", 
+#   "synonym_name", 
+#   "ensembl_gene_stable_id", 
+#   "clinical_significance"),
+#   filters = "snp_filter", 
+#   values = nalls$SNP,
+#   mart = ensembl_snp, 
+#   uniqueRows = TRUE)
+
+nalls <- nalls %>%
+  rename("nearest_gene" = "Nearest Gene")
+
+axon_vs_mb_enriched_homologs <- getBM(attributes = c("hsapiens_homolog_ensembl_gene", "external_gene_name", "ensembl_gene_id"),
+                                           filters = "ensembl_gene_id",
+                                           values = axon_vs_mb_enriched$gene,
+                                           mart = ensembl, uniqueRows = T)
+ds_vs_mb_enriched_homologs <- getBM(attributes = c("hsapiens_homolog_ensembl_gene", "external_gene_name", "ensembl_gene_id"),
+                                           filters = "ensembl_gene_id",
+                                           values = ds_vs_mb_enriched$gene,
+                                           mart = ensembl, uniqueRows = T)
+vs_vs_mb_enriched_homologs <- getBM(attributes = c("hsapiens_homolog_ensembl_gene", "external_gene_name", "ensembl_gene_id"),
+                                           filters = "ensembl_gene_id",
+                                           values = vs_vs_mb_enriched$gene,
+                                           mart = ensembl, uniqueRows = T)
+axon_up_ip_homologs <- getBM(attributes = c("hsapiens_homolog_ensembl_gene", "external_gene_name", "ensembl_gene_id"),
+                                           filters = "ensembl_gene_id",
+                                           values = axon_up_ip$gene,
+                                           mart = ensembl, uniqueRows = T)
+ds_up_ip_homologs <- getBM(attributes = c("hsapiens_homolog_ensembl_gene", "external_gene_name", "ensembl_gene_id"),
+                                           filters = "ensembl_gene_id",
+                                           values = ds_up_ip$gene,
+                                           mart = ensembl, uniqueRows = T)
+vs_up_ip_homologs <- getBM(attributes = c("hsapiens_homolog_ensembl_gene", "external_gene_name", "ensembl_gene_id"),
+                                           filters = "ensembl_gene_id",
+                                           values = vs_up_ip$gene,
+                                           mart = ensembl, uniqueRows = T)
+mb_up_ip_homologs <- getBM(attributes = c("hsapiens_homolog_ensembl_gene", "external_gene_name", "ensembl_gene_id"),
+                                           filters = "ensembl_gene_id",
+                                           values = mb_up_ip$gene,
+                                           mart = ensembl, uniqueRows = T)
+
+axon_vs_mb_enriched_gwas <- axon_vs_mb_enriched_homologs %>% 
+  mutate(external_gene_name = str_to_upper(external_gene_name)) %>% 
+  filter(external_gene_name %in% nalls$nearest_gene) %>%
+  inner_join(nalls, by = c("external_gene_name" = "nearest_gene"))
+ds_vs_mb_enriched_gwas <- ds_vs_mb_enriched_homologs %>% 
+  mutate(external_gene_name = str_to_upper(external_gene_name)) %>% 
+  filter(external_gene_name %in% nalls$nearest_gene) %>%
+  inner_join(nalls, by = c("external_gene_name" = "nearest_gene"))
+vs_vs_mb_enriched_gwas <- vs_vs_mb_enriched_homologs %>% 
+  mutate(external_gene_name = str_to_upper(external_gene_name)) %>% 
+  filter(external_gene_name %in% nalls$nearest_gene) %>%
+  inner_join(nalls, by = c("external_gene_name" = "nearest_gene"))
+axon_up_ip_gwas <- axon_up_ip_homologs %>% 
+  mutate(external_gene_name = str_to_upper(external_gene_name)) %>% 
+  filter(external_gene_name %in% nalls$nearest_gene) %>%
+  inner_join(nalls, by = c("external_gene_name" = "nearest_gene"))
+ds_up_ip_gwas <- ds_up_ip_homologs %>% 
+  mutate(external_gene_name = str_to_upper(external_gene_name)) %>% 
+  filter(external_gene_name %in% nalls$nearest_gene) %>%
+  inner_join(nalls, by = c("external_gene_name" = "nearest_gene"))
+vs_up_ip_gwas <- vs_up_ip_homologs %>% 
+  mutate(external_gene_name = str_to_upper(external_gene_name)) %>% 
+  filter(external_gene_name %in% nalls$nearest_gene) %>%
+  inner_join(nalls, by = c("external_gene_name" = "nearest_gene"))
+mb_up_ip_gwas <- mb_up_ip_homologs %>% 
+  mutate(external_gene_name = str_to_upper(external_gene_name)) %>% 
+  filter(external_gene_name %in% nalls$nearest_gene) %>%
+  inner_join(nalls, by = c("external_gene_name" = "nearest_gene"))
+
+# ensembl_human <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl")
+# external_gene_name <- getBM(attributes = c("ensembl_gene_id", "external_gene_name"),
+#                                            filters = "ensembl_gene_id",
+#                                            values = nalls_snp_info0$ensembl_gene_stable_id,
+#                                            mart = ensembl_human, uniqueRows = T)
+# 
+# nalls_snp_info <- nalls_snp_info0 %>%
+#   # inner_join(external_gene_name, by = c("ensembl_gene_stable_id" = "ensembl_gene_id")) %>%
+#   mutate(upstream_1mb = chrom_start - 1e6, downstream_1mb = chrom_start + 1e6) %>%
+#   mutate(upstream_1mb = ifelse(upstream_1mb < 0, 0, upstream_1mb)) %>%
+#   mutate(upstream_100kb = chrom_start - 1e5, downstream_100kb = chrom_start + 1e5) %>%
+#   mutate(upstream_100kb = ifelse(upstream_100kb < 0, 0, upstream_100kb)) %>%
+#   mutate(region_1mb = paste(chr_name, ':', upstream_1mb, ':', downstream_1mb, sep = '')) %>%
+#   mutate(region_100kb = paste(chr_name, ':', upstream_100kb, ':', downstream_100kb, sep = ''))
+# 
+# txdb_human <- makeTxDbFromGFF('/stripe/references/human/Homo_sapiens.GRCh38.97.gff3', organism = "Homo sapiens")
+# 
+# nalls_snp_granges <- makeGRangesFromDataFrame(nalls_snp_info, 
+#                                               keep.extra.columns = T, 
+#                                               seqnames.field = "chr_name", 
+#                                               start.field = "upstream_1mb", 
+#                                               end.field = "downstream_1mb")
+# genes_in_snp_regions <- subsetByOverlaps(genes(txdb_human), 
+#                                          nalls_snp_granges)
+# overlap_hits <- findOverlaps(genes(txdb_human), 
+#                              nalls_snp_granges)
+# txdb_idx <- queryHits(overlap_hits)
+# nalls_idx <- subjectHits(overlap_hits)
+# nalls_snps_genes_1mb <- tibble(gene = names(genes(txdb_human))[txdb_idx], 
+#                                  rsid = nalls_snp_granges$refsnp_id[nalls_idx], 
+#                                  query = nalls_snp_granges$region_1mb[nalls_idx], 
+#                                  gene_start = start(genes(txdb_human))[txdb_idx]) %>% 
+#   unique()
+# 
+# nalls_only <- getBM(attributes = c("mmusculus_homolog_ensembl_gene", "external_gene_name"),
+#                          filters = "ensembl_gene_id",
+#                          values = nalls_snp_info$ensembl_gene_stable_id,
+#                          mart = ensembl_human,
+#               uniqueRows = T)
+# 
+# nalls_snps_genes_final <- getBM(attributes = c("mmusculus_homolog_ensembl_gene", "external_gene_name"),
+#                          filters = "external_gene_name",
+#                          values = nalls_snps_genes_1mb$gene,
+#                          mart = ensembl_human,
+#               uniqueRows = T)
+# 
+#Incorporate hESC TAD information, using TADs overlapping PD GWAS SNPs
+# tads0 <- read.table("/zfs/analysis/pk_trap/r_master/objects/tads_hESC_hg38.bed", 
+#                    col.names = c('chr_name', 'start', 'end', 'region', 'none')) %>% 
+#   mutate(chr_name = str_remove(chr_name, 'chr'))
+# tads <- makeGRangesFromDataFrame(tads0, 
+#                                  keep.extra.columns = F, 
+#                                  seqnames.field = "chr_name", 
+#                                  start.field = "start", 
+#                                  end.field = "end")
+# 
+# tad_hits <- findOverlaps(tads, nalls_snp_granges)
+# tads_snp_relevant <- tads0[queryHits(tad_hits) %>% unique(),]
+# tads_snp_relevant_granges <- makeGRangesFromDataFrame(tads_snp_relevant, 
+#                                               keep.extra.columns = T, 
+#                                               seqnames.field = "chr_name", 
+#                                               start.field = "start", 
+#                                               end.field = "end")
+# overlap_hits <- findOverlaps(genes(txdb_human), 
+#                              tads_snp_relevant_granges)
+# txdb_idx <- queryHits(overlap_hits)
+# tads_idx <- subjectHits(overlap_hits)
+# tads_genes <- tibble(gene = names(genes(txdb_human))[txdb_idx],
+#                                  tad = tads_snp_relevant_granges$region[tads_idx], 
+#                                  gene_start = start(genes(txdb_human))[txdb_idx]) %>% 
+#   unique()
+# tads_genes_final <- getBM(attributes = c("mmusculus_homolog_ensembl_gene", "external_gene_name"),
+#                          filters = "external_gene_name",
+#                          values = tads_genes$gene,
+#                          mart = ensembl_human,
+#               uniqueRows = T)
+# 
+# tads_genes_final_intersected <- tads_genes_final %>% filter(mmusculus_homolog_ensembl_gene %in% axon_vs_mb_enriched$gene) %>%
+#   inner_join(axon_vs_mb_enriched, by = c("mmusculus_homolog_ensembl_gene" = "gene")) %>%
+#   inner_join(tads_genes, by = c("external_gene_name" = "gene")) %>%
+#   rename(region = tad)
+# tads_genes_final_intersected_dorsal <- tads_genes_final %>% 
+#   filter(mmusculus_homolog_ensembl_gene %in% ds_vs_mb_enriched$gene) %>%
+#   inner_join(ds_vs_mb_enriched, by = c("mmusculus_homolog_ensembl_gene" = "gene")) %>%
+#   inner_join(tads_genes, by = c("external_gene_name" = "gene")) %>%
+#   rename(region = tad)
+# tads_genes_final_intersected_ventral <- tads_genes_final %>% 
+#   filter(mmusculus_homolog_ensembl_gene %in% vs_vs_mb_enriched$gene) %>%
+#   inner_join(vs_vs_mb_enriched, by = c("mmusculus_homolog_ensembl_gene" = "gene")) %>%
+#   inner_join(tads_genes, by = c("external_gene_name" = "gene")) %>%
+#   rename(region = tad)
+# 
+# write.table(tads_genes_final_intersected, file = paste(file.path(base_dir, output_dir), '/', 'tads_genes_final_intersected', '.csv', sep = ''), sep = ",")
+
+vsd_counts <- assay(vsd_axon_ip_vs_mb_ip)
+log_counts <- log2(counts_axon_ip_vs_mb_ip + 1)
+
+sample_vs_sample <- log_counts %>% 
+  as.data.frame() %>% 
+  rownames_to_column('gene') %>% 
+  as_tibble %>% 
+  # filter(gene %in% axon_ip$gene) %>%
+  gather(sample, counts, -gene) %>%
+  inner_join(sample_metadata, by = c("sample" = "sample_name")) %>%
+  dplyr::select(gene, counts, region) %>%
+  group_by(gene, region) %>%
+  summarise(counts = mean(counts)) %>%
+  pivot_wider(names_from = region, values_from = counts) %>%
+  pivot_longer(cols = c('ds', 'vs'), names_to = 'striatum', values_to = 'striatum_counts') %>%
+  rename(mb_counts = mb) %>%
+  group_by(striatum) %>%
+  mutate(axonal = ifelse(gene %in% axon_vs_mb_enriched$gene, 'both', ifelse(gene %in% ds_vs_mb_enriched$gene, 'dorsal', ifelse(gene %in% vs_vs_mb_enriched$gene, 'ventral', 'none')))) %>%
+  mutate(axonal = factor(axonal, levels= c("none", "ventral", "dorsal", "both"))) %>%
+  arrange(axonal) %>%
+  mutate(gwas = ifelse(gene %in% ds_up_ip_gwas$ensembl_gene_id, 'GOI', 
+                       ifelse(gene %in% vs_up_ip_gwas$ensembl_gene_id, 'GOI', 
+                              ifelse(gene %in% mb_up_ip_gwas$ensembl_gene_id, 'GOI', 'Background'))))
+  
+p <- ggplot(sample_vs_sample, aes(mb_counts, striatum_counts))
+p + geom_point(alpha = 1/2, aes(colour = factor(axonal))) +
+  # facet_wrap(~ striatum) +
+  # geom_abline(intercept = 3, slope = 1, linetype="dotted") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  # geom_abline(intercept = -3, slope = 1, linetype="dotted") +
+  theme_bw() +
+  scale_color_lancet() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  xlab(expression('Log'[2]*' Midbrain IP Counts')) +
+  ylab(expression('Log'[2]*' Axon IP Counts')) +
+  labs(colour = 'Striatal expression')
+ggsave("axon_vs_mb_log_counts_3lfc.png")
+
+sample_vs_sample_positive_detailed <- sample_vs_sample %>% 
+  inner_join(res_output_axon_ip_vs_mb_ip, by = c("gene" = "gene")) %>% 
+  filter(log2FoldChange > 0)
+
+p <- ggplot(sample_vs_sample_positive_detailed, aes(log2FoldChange, lfcSE))
+p + geom_point(alpha = 1/4, aes(colour = axonal)) +
+  theme_bw() +
+  scale_color_lancet()  +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())
+ggsave("lfc_vs_lfcse_axon_vs_mb.pdf")
+
+ggplot(sample_vs_sample_positive_detailed, aes(lfcSE, fill = axonal, colour = axonal)) +
+      geom_density(alpha = 1/8, adjust = 0.75) +
+      theme_bw() +
+      scale_color_lancet() + xlim(0, 1)
+
+sample_vs_sample <- sample_vs_sample %>% arrange(gwas)
+p <- ggplot(sample_vs_sample, aes(mb_counts, striatum_counts))
+p + geom_point(alpha = 1/2, aes(colour = factor(gwas))) +
+  # facet_wrap(~ striatum) +
+  # geom_abline(intercept = 3, slope = 1, linetype="dotted") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  # geom_abline(intercept = -3, slope = 1, linetype="dotted") +
+  theme_bw() +
+  scale_color_lancet() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.title = element_blank()) +
+  xlab(expression('Log'[2]*' Midbrain IP Counts')) +
+  ylab(expression('Log'[2]*' Axon IP Counts'))
+ggsave("axon_vs_mb_log_counts_goi_2lfc.png")
+
 ```
 
 **Enrichment/Unique filtering**
