@@ -2,6 +2,9 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## 6th November 2019  
+  - REL breedings - started (see personal google drive for spreadsheet).
+  - Redo PCR of REL115.3a-f, 115.2a, 117.3e, 117.2c, 123.1i, 122.1f, 122.1j
 ## 28th October 2019
 - [Google Slides of Figures](https://docs.google.com/presentation/d/1DEyPslen4YshVAra9fRdYCM5koILknd5MapfkIGl8G0/edit?usp=sharing)
 - Done three comparisons of DS/VS vs MB (2-fold, 4-fold and 8-fold cut-offs). The axon vs MB = all DS vs MB genes that are also VS vs MB, not DS+VS vs MB DESeq2 comparison. Only included genes that are IP vs Input enriched. At the 2-fold striatum vs MB level, 11/107 PD GWAS genes (from [Nalls, 2019](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwjl-cGB777lAhXyQkEAHYROAcAQFjAAegQIAhAB&url=https%3A%2F%2Fwww.biorxiv.org%2Fcontent%2F10.1101%2F388165v2&usg=AOvVaw3j3ES6ys5-3TjxHKVay13h)) are dorsally enriched vs MB. 8 are ventrally enriched vs MB. CHD9, CTSB, KPNA1 are the dorsal only enriched GWAS genes.
