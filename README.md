@@ -2,6 +2,32 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## 12th November 2019
+  - Priority to identify 3' UTRs differentially expressed between axon and cell body, or age, or OVX.
+  - Two routes to identifying 3' UTRs from our data: de novo reconstruction, or using annotations including PolyAsite and Gencode. Both routes only capture a low percentage (10-30%) of what is actually there, and there is low agreement between these methods ([Chen, 2019](https://academic.oup.com/bib/advance-article/doi/10.1093/bib/bbz068/5522019)).
+  - A third strategy would require long read sequencing to capture full-length transcripts, including the 3' UTR. This would likely require an enrichment for genes of interest, to capture low abundance isoforms. The enrichment could either be probe-based, for shorter transcripts, or long-range PCR for longer transcripts.
+  - According to [PolyASite DB](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz918/5588346):
+    - Alternative first exons (dictated by choice of promoter) and alternative terminal exons contribut most to variation between human transcript isoforms ([Reyes, Huber, 2018](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5778607/))
+    - Proliferating cells express short 3' UTR transcripts due to 3' end processing at coding region-proximal poly(A) sites (Sandberg), and vice versa for resting, differentiated cells
+    - RNA binding proteins bind to 3' UTRs, so the length of this region can influence expression, through stability, translation, localisation, etc.
+    - Poly(A) site databases have enabled discovery of novel polyadenylation signals, novel isoforms, such as 'intronic' polyadenylation in immune cells [Singh, 2018](https://www.nature.com/articles/s41586-018-0465-8)
+    - ML in condition-dependent poly(A) site usage led to identification of RNA binding protein modulators [Gruber, 2018](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1415-3)
+    
+  - In [PolyASite DB](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz918/5588346), they avoid spurious internal priming of poly(T) primers and clustered sites that are closely spaced and share regulatory signals (because these are likely due to imprecision of the 3' end data). They provide overall and per-sample usage quantification of the poly(A) site in each cluster. They only used samples sequenced from total RNA. The full workflow is described [here](https://github.com/zavolanlab/polyAsite_workflow).
+  - AJ Gruber and M Zavolan's [review](https://www.nature.com/articles/s41576-019-0145-z.pdf):
+    - Important point reiterated: transcript can have the same coding sequence, but different UTR, leading to different effect.
+    - At the 3' end of most RNA pol II derived transcripts, endonucleocytic cleavage occurs at a poly(A) site, defined by a specific motif. This is followed by addition of a poly(A) tail. Most human genes have multiple poly(A) sites and there is condition-dependent regulator expression/binding to sequence or structures in pre-mRNA, influencing which poly(A) site is used. Therefore alternative cleavage and polyadenylation (APA) can alter the CDS or 3' UTR.
+    - 3' UTRs ~140 bp in worm to 1-2 kb in human. 
+    - 3' processing incolves over 80 proteins, of which ~ 20 are core proteins:
+      - The core consists of four subcomplexes: **Cleavage and polyadenylation factor (CPSF), Cleavage stimulation factor (CSTF), Cleavage factor I (CFI) and Cleavage factor II (CFII) + some other proteins, including Symplekin and poly(A) polymerase (PAP).**
+    - AAUAAA is the canonical poly(A) signal. This PAS is present at most PA sites, ~21 nucleotides upstream of the cleavage site. The PAS is recognised by the CPSF.
+    - There are other variants of AAUAAA functioning as PAS and they have a position-dependent profile, also.
+    - Core PAS regulatory motifs are enriched at distal poly(A) sites compared to proximal sites for tandem poly(A) sites in protein-coding genes (tandem meaning the proximal PAS gives rise to a truncated form of the distal PAS 3' UTR). A variant of AAUAAA (AAUACA) does not show differential enrichment, reflecting the sequence-specific efficiency in guiding cleavage and polyadenylation.
+    - 3' end cleavage occurs ~21 nucleotides downstream of the PAS, typically adjacent to an adenosine. CPSF3 performs endonucleocytic cleavage, and the PAP addas a poly(A) tail to the cleavage product. Poly(A) binding protein 1 (PABPN1) bind to the nascent poly(A) tail, preventing the interaction between BPSF and PAP when the tail reaches ~250 nucleotides (limiting poly(A) tail length). Poly(A) tail lengths do differ and influence translational efficiency.
+  - There are different types of polyA site:
+    > In order of decreasing priority: TE, terminal exon; EX, exonic; IN, intronic; DS, 1,000 nt downstream of an annotated terminal exon; AE, anti-sense to an exon; AI, anti-sense to an intron; AU, 1,000 nt upstream in anti-sense direction of a transcription start site; IG, intergenic
+  - Snca in the human, has > 20 polyA sites described ([PolyASite](https://polyasite.unibas.ch/search)). 
+  
 ## 6th November 2019  
   - REL breedings - started (see personal google drive for spreadsheet).
   - Redo PCR of REL115.3a-f, 115.2a, 117.3e, 117.2c, 123.1i, 122.1f, 122.1j
