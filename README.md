@@ -14,7 +14,7 @@ Jakob Sca
   csplit -s -z /path/to/INPUT.FA '/>/' '{*}'
   for i in xx* ; do n=$(sed 's/>// ; s/ .*// ; 1q' "$i") ; mv "$i" "$n.fa"
   done
- ```
+  ```
 - Then plan to test Sleuth for estimating transcript abundance changes in KW_DAT dataset.
   
 ## 12th November 2019
