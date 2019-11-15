@@ -40,6 +40,10 @@ Jakob Sca
   - Predictions were longer than Stringtie and Cufflinks and contained a higher percentage of canonical PASs ~21 nucleotides upstream of the PAS. TecTool also had greater inter replicate agreement than these other tools. 
   - In a multi-tissue experiment, they found novel isoforms that were the most expressed transcript of the corresponding gene. 
   - In a 201-T Cell single cell dataset, they found that the abundance of predicted isoforms matched the range of annotated isoforms. Considering only reads that splice into the 5' splice site of the terminal exon, once the TPM reaches 1-2, the isoform is detected in multiple cells. However, multiple isoforms were rarely present in a cell at the same time. 
+  - For a tissue bulk RNA seq dataset, they generated updated annotations for each sample, then merged the annotations of replicate samples of each tissue, to obtain a tissue-specific annotation. They do not describe how they merge. They then used Salmon to quantify transcripts.
+  
+- [Zhao, 2019](https://www.mdpi.com/1422-0067/20/1/212/htm): **Take a look at this review**:
+  - May be worth running experiments in midbrain to identify translation start sites, ribosome footprinting...
 
 
     
