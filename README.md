@@ -2,6 +2,21 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## 15th November 2019  
+- [Zhao, 2019](https://www.mdpi.com/1422-0067/20/1/212/htm): **Take a look at this review**:
+  - May be worth running experiments in midbrain to identify translation start sites, ribosome footprinting...
+- Remapping KW_DAT samples using new index: ensembl mouse 98 cdna + ncrna + all ensembl homo_sapiens SNCA transcripts (as opposed to using the NCBI sequence, as was done previously). Also generated modified GTF with human SNCA added, annotated as originating from 'human4' chromosome. cDNA fasta updated with 'human4' name in `/stripe/references/mouse/kallisto/ens98`. Used `--genomebam` option to generate BAM alignments to genome: Produced modified FASTA with entire mouse primary assembly + human chromosome 4, labelled as 'human4', for viewing in IGV:
+  ```bash
+  while read s ; R="" ; for i in *$s* ; do R+="$i " ; done ; do kallisto quant -i /stripe/references/mouse/kallisto/ens98/ens98_mmus_cdna_ncrna_hSNCA.idx -o /zfs/analysis/kw_trap/KW_DAT-TRAP/kallisto/kallisto_ens98_hSNCA_20191115/$s -t 8 --bias $R -b 100 --genomebam --gtf /stripe/references/mouse/kallisto/ens98/Mus_musculus.GRCm38.hsap_98_20191115.gtf.gz ; done >> /zfs/analysis/kw_trap/KW_DAT-TRAP/kallisto/kallisto_ens98_hSNCA_20191115/log.txt 2>&1 < kw_batch_2_codes
+  ```
+- To split a multi-feature fasta into its constituent features:
+  ```bash
+  csplit -s -z /path/to/INPUT.FA '/>/' '{*}'
+  for i in xx* ; do n=$(sed 's/>// ; s/ .*// ; 1q' "$i") ; mv "$i" "$n.fa"
+  done
+ ```
+- Then plan to test Sleuth for estimating transcript abundance changes in KW_DAT dataset.
+  
 ## 12th November 2019
   - Priority to identify 3' UTRs differentially expressed between axon and cell body, or age, or OVX.
   - Two routes to identifying 3' UTRs from our data: de novo reconstruction, or using annotations including PolyAsite and Gencode. Both routes only capture a low percentage (10-30%) of what is actually there, and there is low agreement between these methods ([Chen, 2019](https://academic.oup.com/bib/advance-article/doi/10.1093/bib/bbz068/5522019)).
@@ -41,9 +56,6 @@ Jakob Sca
   - In a multi-tissue experiment, they found novel isoforms that were the most expressed transcript of the corresponding gene. 
   - In a 201-T Cell single cell dataset, they found that the abundance of predicted isoforms matched the range of annotated isoforms. Considering only reads that splice into the 5' splice site of the terminal exon, once the TPM reaches 1-2, the isoform is detected in multiple cells. However, multiple isoforms were rarely present in a cell at the same time. 
   - For a tissue bulk RNA seq dataset, they generated updated annotations for each sample, then merged the annotations of replicate samples of each tissue, to obtain a tissue-specific annotation. They do not describe how they merge. They then used Salmon to quantify transcripts.
-  
-- [Zhao, 2019](https://www.mdpi.com/1422-0067/20/1/212/htm): **Take a look at this review**:
-  - May be worth running experiments in midbrain to identify translation start sites, ribosome footprinting...
 
 
     
