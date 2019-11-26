@@ -2,6 +2,13 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+
+## 20th November 2019
+- Awk to convert sample metadata into yaml config for PAQR_KAPAC:
+  ```bash
+  awk 'BEGIN {FS=","} {if($11="b2") print $0}' /zfs/analysis/pk_trap/r_master/metadata/sample_metadata_110719.csv | awk   '{if($2>249195) print $0}' | awk '{if($2<281000) print $2 ": {bam: " $2 ", type: " $5 "}"}'
+  ```
+  
 ## 15th November 2019  
 - [Zhao, 2019](https://www.mdpi.com/1422-0067/20/1/212/htm): **Take a look at this review**:
   - May be worth running experiments in midbrain to identify translation start sites, ribosome footprinting...
