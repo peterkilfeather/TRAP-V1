@@ -3,6 +3,13 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 9th January 2020
+Notes on [Caffrey, 2007](https://www.ncbi.nlm.nih.gov/pubmed/17555970) and [Beevers, 2017](https://www.ncbi.nlm.nih.gov/pubmed/28689993):
+  - Chromosome 17q21 contains 1.3-1.6 Mb in LD, including MAPT locus. The LD is due to a 900 kb chromosomal inversion thought to be due to non-allelic homologous recombination between long coding repeats flanking the region: Two haploytype families result: H1 and H2.
+  - Alternative splicing of MAPT exons 2 and 3 determines the number of N-terminal inserts. Splicing of exon 10 determines the number of microtubule binding repeats (3R or 4R).
+  - Although MAPT has as strong association with PD, there is no tau tangle pathology.
+  - H2 haplotype expresses 2x as much exon 2+3+ transcript as H1. H1 expresses 40% more exon 10+(4R) transcript than H2, with regional differences, suggesting a link between regional vulnerability and polymorphism-driven splicing change.
+
 ## 20th November 2019
 - Awk to convert sample metadata into yaml config for PAQR_KAPAC:
   ```bash
