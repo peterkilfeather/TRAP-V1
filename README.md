@@ -11,7 +11,7 @@ Jakob Sca
     FW: CTTGCTGCTCTTTCGATGCCAG
     RV: GTTCCTCGGTTTCGATGAAGCC
     ```
-    - Dissecting TRAP111.3e SNpc/VTA CP/NAcc for testing Calb1/Coch/Ace differences. This is replicate number 1.
+    - Dissecting TRAP111.3e SNpc/VTA CP/NAcc for testing Calb1/Coch/Ace differences. This is replicate number 1. Tissue is stored in box label 'IBIS'.
   - In parallel, will need tissue for eGFP ELISA. Once qPCR shows region enrichment, move to collect tissue for ELISA.
     
 
