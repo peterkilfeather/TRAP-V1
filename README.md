@@ -3,6 +3,18 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 24th January 2020
+- Preparation for TRAP:
+  - Considering dissection of SNpc/VTA and Dorsal/Ventral STR. Testing dissection of SNpc/VTA using Calb1 primers to compare, as in [Gao, 2013](https://www.ncbi.nlm.nih.gov/pubmed/23638090).
+    - Primers using [Origene design](https://www.origene.com/catalog/gene-expression/qpcr-primer-pairs/mp201535/calb1-mouse-qpcr-primer-pair-nm_009788)
+    ```
+    FW: CTTGCTGCTCTTTCGATGCCAG
+    RV: GTTCCTCGGTTTCGATGAAGCC
+    ```
+    - Dissecting TRAP111.3e SNpc/VTA CP/NAcc for testing Calb1/Coch/Ace differences. This is replicate number 1.
+  - In parallel, will need tissue for eGFP ELISA. Once qPCR shows region enrichment, move to collect tissue for ELISA.
+    
+
 ## 9th January 2020
 Notes on [Caffrey, 2007](https://www.ncbi.nlm.nih.gov/pubmed/17555970) and [Beevers, 2017](https://www.ncbi.nlm.nih.gov/pubmed/28689993):
   - Chromosome 17q21 contains 1.3-1.6 Mb in LD, including MAPT locus. The LD is due to a 900 kb chromosomal inversion thought to be due to non-allelic homologous recombination between long coding repeats flanking the region: Two haploytype families result: H1 and H2.
