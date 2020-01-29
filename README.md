@@ -3,6 +3,42 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 29th January 2020
+- Run qPCR of first batch of dissected MB/STR.
+  - DS/VS dissection improved. 5-fold enrichment of Coch in DS and 1.5-fold in Ace, compared to 2.3-fold Coch and 1.2-fold in former dissection method. SNpc/VTA not succesfully with Calb1. Repeat using dissection picture shown:
+  ![](https://github.com/peterkilfeather/pk_trap/blob/master/dissection/SNPC_VTA_dissection_2.jpg)
+    
+    Description as in [paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3487291/):
+    > **Dissection Technique for isolating the midbrain dopaminergic neuropil. Technique for dissecting substantia nigra (SN) from ventral tegmental area (VTA).** 1. Remove overlying cortex and hippocampus (these structures have already been removed in the above image). 2. Make a vertical cut separating the pigmented area of the SN from the VTA. 3. Make a horizontal cut at or near the midline just above the dorsal and lateral most part of the SN. 4. Tease the SN away from the rest of the brainstem. Once SN has been removed, similarly tease the VTA away from the rest of the midbrain. Note: this section is typically observed at coordinates, relative to Bregma, at AP 5.7.
+
+- Used Allen Brain Atlas to identify additional genes with either SNpc or VTA enrichment, relative to surrounding structures. [Calb1](https://mouse.brain-map.org/experiment/show/79556672), [Kcns3](https://mouse.brain-map.org/experiment/show/77371817), [Adrbk2](https://mouse.brain-map.org/experiment/show/74724787) and [Sdc2](https://mouse.brain-map.org/experiment/show/72080155) are most different. Ordered primers:
+  ```
+  Adrbk2 Origene
+    FW: CGGACAAACTCTGCTTCATCCTG
+    RV: CGCTGGCATAAAACCGCATCTC
+  Kcns3 Origene
+    FW: TGCTTACCTGCCACTCTGAGGA
+    RV: CAGTTCCTCCATCACATGCAGC
+  Sdc2 Origene
+    FW: GAACAGAGCTGACATCCGATAAG
+    RV: GGGATGTTGTCAGAACTGGACTC
+  ```
+
+## 28th January 2020
+- RNA extracted. See lab book for concentrations. 0.5 ug cDNA made, waiting for calb1 primers.
+- Preparing OPDC report, so going through TRAP R project and optimising.
+- Switching to use updated kallisto quantification of PK1 and KW2 samples (November alignment, with updated human chromosome 4).
+- New pseudoalignment percentages:
+  ```
+  for i in */run_info.json ; do cat $i | grep p_pseudoaligned | cut -d ' ' -f 2 | cut -d ',' -f 1 >> p_pseudoaligned.txt ; done
+  for i in */ ; do echo ${i%/} ; done > sample_codes_in_order
+  paste sample_codes_in_order p_pseudoaligned.txt > pseudoalignment_stats.txt
+  ```
+- Optimising R Project to generate report on 2019 progress for OPDC report.
+  
+## 27th January 2020
+- Extract RNA for SNpc/VTA, DS/VS comparison. Use [ONT extraction method](https://github.com/peterkilfeather/pk_trap/blob/master/Extracting%20human%20RNA%20with%20TRIzol.pdf). cDNA synth with VILO IV kit. 
+
 ## 24th January 2020
 - Preparation for TRAP:
   - Considering dissection of SNpc/VTA and Dorsal/Ventral STR. Testing dissection of SNpc/VTA using Calb1 primers to compare, as in [Gao, 2013](https://www.ncbi.nlm.nih.gov/pubmed/23638090).
