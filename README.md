@@ -3,6 +3,10 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 30th January 2020
+- Taking DS/VS (new approach) and SNpc/VTA as described on 29/01/2020 from REL119.4e. Showing Guusje Haver how to extract RNA in parallel. Aim to extract, cDNA synth with VILO IV and qPCR today. Add new SNpc/VTA primers tomorrow when they arrive.
+- In parallel, further optimisation of R code to generate plots for OPDC report. At this stage, would like to show WGCNA module information from 18m MB OVX and 3' UTR lengthening in STR.
+
 ## 29th January 2020
 - Run qPCR of first batch of dissected MB/STR.
   - DS/VS dissection improved. 5-fold enrichment of Coch in DS and 1.5-fold in Ace, compared to 2.3-fold Coch and 1.2-fold in former dissection method. SNpc/VTA not succesfully with Calb1. Repeat using dissection picture shown:
