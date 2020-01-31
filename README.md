@@ -2,6 +2,140 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+
+## 29th January 2020
+- Run qPCR of first batch of dissected MB/STR.
+  - DS/VS dissection improved. 5-fold enrichment of Coch in DS and 1.5-fold in Ace, compared to 2.3-fold Coch and 1.2-fold in former dissection method. SNpc/VTA not succesfully with Calb1. Repeat using dissection picture shown:
+  ![](https://github.com/peterkilfeather/pk_trap/blob/master/dissection/SNPC_VTA_dissection_2.jpg)
+    
+    Description as in [paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3487291/):
+    > **Dissection Technique for isolating the midbrain dopaminergic neuropil. Technique for dissecting substantia nigra (SN) from ventral tegmental area (VTA).** 1. Remove overlying cortex and hippocampus (these structures have already been removed in the above image). 2. Make a vertical cut separating the pigmented area of the SN from the VTA. 3. Make a horizontal cut at or near the midline just above the dorsal and lateral most part of the SN. 4. Tease the SN away from the rest of the brainstem. Once SN has been removed, similarly tease the VTA away from the rest of the midbrain. Note: this section is typically observed at coordinates, relative to Bregma, at AP 5.7.
+
+- Used Allen Brain Atlas to identify additional genes with either SNpc or VTA enrichment, relative to surrounding structures. [Calb1](https://mouse.brain-map.org/experiment/show/79556672), [Kcns3](https://mouse.brain-map.org/experiment/show/77371817), [Adrbk2](https://mouse.brain-map.org/experiment/show/74724787) and [Sdc2](https://mouse.brain-map.org/experiment/show/72080155) are most different. Ordered primers:
+  ```
+  Adrbk2 Origene
+    FW: CGGACAAACTCTGCTTCATCCTG
+    RV: CGCTGGCATAAAACCGCATCTC
+  Kcns3 Origene
+    FW: TGCTTACCTGCCACTCTGAGGA
+    RV: CAGTTCCTCCATCACATGCAGC
+  Sdc2 Origene
+    FW: GAACAGAGCTGACATCCGATAAG
+    RV: GGGATGTTGTCAGAACTGGACTC
+  ```
+
+## 28th January 2020
+- RNA extracted. See lab book for concentrations. 0.5 ug cDNA made, waiting for calb1 primers.
+- Preparing OPDC report, so going through TRAP R project and optimising.
+- Switching to use updated kallisto quantification of PK1 and KW2 samples (November alignment, with updated human chromosome 4).
+- New pseudoalignment percentages:
+  ```
+  for i in */run_info.json ; do cat $i | grep p_pseudoaligned | cut -d ' ' -f 2 | cut -d ',' -f 1 >> p_pseudoaligned.txt ; done
+  for i in */ ; do echo ${i%/} ; done > sample_codes_in_order
+  paste sample_codes_in_order p_pseudoaligned.txt > pseudoalignment_stats.txt
+  ```
+- Optimising R Project to generate report on 2019 progress for OPDC report.
+  
+## 27th January 2020
+- Extract RNA for SNpc/VTA, DS/VS comparison. Use [ONT extraction method](https://github.com/peterkilfeather/pk_trap/blob/master/Extracting%20human%20RNA%20with%20TRIzol.pdf). cDNA synth with VILO IV kit. 
+
+## 24th January 2020
+- Preparation for TRAP:
+  - Considering dissection of SNpc/VTA and Dorsal/Ventral STR. Testing dissection of SNpc/VTA using Calb1 primers to compare, as in [Gao, 2013](https://www.ncbi.nlm.nih.gov/pubmed/23638090).
+    - Primers using [Origene design](https://www.origene.com/catalog/gene-expression/qpcr-primer-pairs/mp201535/calb1-mouse-qpcr-primer-pair-nm_009788)
+    ```
+    FW: CTTGCTGCTCTTTCGATGCCAG
+    RV: GTTCCTCGGTTTCGATGAAGCC
+    ```
+    - Dissecting TRAP111.3e SNpc/VTA CP/NAcc for testing Calb1/Coch/Ace differences. This is replicate number 1. Tissue is stored in box label 'IBIS'. Will need to extract RNA, cDNA synth and run qPCR.
+  - In parallel, will need tissue for eGFP ELISA. Once qPCR shows region enrichment, move to collect tissue for ELISA.
+    
+
+## 9th January 2020
+Notes on [Caffrey, 2007](https://www.ncbi.nlm.nih.gov/pubmed/17555970) and [Beevers, 2017](https://www.ncbi.nlm.nih.gov/pubmed/28689993):
+  - Chromosome 17q21 contains 1.3-1.6 Mb in LD, including MAPT locus. The LD is due to a 900 kb chromosomal inversion thought to be due to non-allelic homologous recombination between long coding repeats flanking the region: Two haploytype families result: H1 and H2.
+  - Alternative splicing of MAPT exons 2 and 3 determines the number of N-terminal inserts. Splicing of exon 10 determines the number of microtubule binding repeats (3R or 4R).
+  - Although MAPT has as strong association with PD, there is no tau tangle pathology.
+  - H2 haplotype expresses 2x as much exon 2+3+ transcript as H1. H1 expresses 40% more exon 10+(4R) transcript than H2, with regional differences, suggesting a link between regional vulnerability and polymorphism-driven splicing change.
+
+## 20th November 2019
+- Awk to convert sample metadata into yaml config for PAQR_KAPAC:
+  ```bash
+  awk 'BEGIN {FS=","} {if($11="b2") print $0}' /zfs/analysis/pk_trap/r_master/metadata/sample_metadata_110719.csv | awk   '{if($2>249195) print $0}' | awk '{if($2<281000) print $2 ": {bam: " $2 ", type: " $5 "}"}'
+  ```
+  
+## 15th November 2019  
+- [Zhao, 2019](https://www.mdpi.com/1422-0067/20/1/212/htm): **Take a look at this review**:
+  - May be worth running experiments in midbrain to identify translation start sites, ribosome footprinting...
+- Remapping KW_DAT samples using new index: ensembl mouse 98 cdna + ncrna + all ensembl homo_sapiens SNCA transcripts (as opposed to using the NCBI sequence, as was done previously). Also generated modified GTF with human SNCA added, annotated as originating from 'human4' chromosome. cDNA fasta updated with 'human4' name in `/stripe/references/mouse/kallisto/ens98`. Used `--genomebam` option to generate BAM alignments to genome: Produced modified FASTA with entire mouse primary assembly + human chromosome 4, labelled as 'human4', for viewing in IGV:
+  ```bash
+  while read s ; R="" ; for i in *$s* ; do R+="$i " ; done ; do kallisto quant -i /stripe/references/mouse/kallisto/ens98/ens98_mmus_cdna_ncrna_hSNCA.idx -o /zfs/analysis/kw_trap/KW_DAT-TRAP/kallisto/kallisto_ens98_hSNCA_20191115/$s -t 8 --bias $R -b 100 --genomebam --gtf /stripe/references/mouse/kallisto/ens98/Mus_musculus.GRCm38.hsap_98_20191115.gtf.gz ; done >> /zfs/analysis/kw_trap/KW_DAT-TRAP/kallisto/kallisto_ens98_hSNCA_20191115/log.txt 2>&1 < kw_batch_2_codes
+  ```
+- To split a multi-feature fasta into its constituent features:
+  ```bash
+  csplit -s -z /path/to/INPUT.FA '/>/' '{*}'
+  for i in xx* ; do n=$(sed 's/>// ; s/ .*// ; 1q' "$i") ; mv "$i" "$n.fa"
+  done
+  ```
+- Then plan to test Sleuth for estimating transcript abundance changes in KW_DAT dataset.
+  
+## 12th November 2019
+  - Priority to identify 3' UTRs differentially expressed between axon and cell body, or age, or OVX.
+  - Two routes to identifying 3' UTRs from our data: de novo reconstruction, or using annotations including PolyAsite and Gencode. Both routes only capture a low percentage (10-30%) of what is actually there, and there is low agreement between these methods ([Chen, 2019](https://academic.oup.com/bib/advance-article/doi/10.1093/bib/bbz068/5522019)).
+  - A third strategy would require long read sequencing to capture full-length transcripts, including the 3' UTR. This would likely require an enrichment for genes of interest, to capture low abundance isoforms. The enrichment could either be probe-based, for shorter transcripts, or long-range PCR for longer transcripts.
+  - According to [PolyASite DB](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz918/5588346):
+    - Alternative first exons (dictated by choice of promoter) and alternative terminal exons contribut most to variation between human transcript isoforms ([Reyes, Huber, 2018](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5778607/))
+    - Proliferating cells express short 3' UTR transcripts due to 3' end processing at coding region-proximal poly(A) sites (Sandberg), and vice versa for resting, differentiated cells
+    - RNA binding proteins bind to 3' UTRs, so the length of this region can influence expression, through stability, translation, localisation, etc.
+    - Poly(A) site databases have enabled discovery of novel polyadenylation signals, novel isoforms, such as 'intronic' polyadenylation in immune cells [Singh, 2018](https://www.nature.com/articles/s41586-018-0465-8)
+    - ML in condition-dependent poly(A) site usage led to identification of RNA binding protein modulators [Gruber, 2018](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1415-3)
+    
+  - In [PolyASite DB](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkz918/5588346), they avoid spurious internal priming of poly(T) primers and clustered sites that are closely spaced and share regulatory signals (because these are likely due to imprecision of the 3' end data). They provide overall and per-sample usage quantification of the poly(A) site in each cluster. They only used samples sequenced from total RNA. The full workflow is described [here](https://github.com/zavolanlab/polyAsite_workflow).
+  - AJ Gruber and M Zavolan's [review](https://www.nature.com/articles/s41576-019-0145-z.pdf):
+    - Important point reiterated: transcript can have the same coding sequence, but different UTR, leading to different effect.
+    - At the 3' end of most RNA pol II derived transcripts, endonucleocytic cleavage occurs at a poly(A) site, defined by a specific motif. This is followed by addition of a poly(A) tail. Most human genes have multiple poly(A) sites and there is condition-dependent regulator expression/binding to sequence or structures in pre-mRNA, influencing which poly(A) site is used. Therefore alternative cleavage and polyadenylation (APA) can alter the CDS or 3' UTR.
+    - 3' UTRs ~140 bp in worm to 1-2 kb in human. 
+    - 3' processing incolves over 80 proteins, of which ~ 20 are core proteins:
+      - The core consists of four subcomplexes: **Cleavage and polyadenylation factor (CPSF), Cleavage stimulation factor (CSTF), Cleavage factor I (CFI) and Cleavage factor II (CFII) + some other proteins, including Symplekin and poly(A) polymerase (PAP).**
+    - AAUAAA is the canonical poly(A) signal. This PAS is present at most PA sites, ~21 nucleotides upstream of the cleavage site. The PAS is recognised by the CPSF.
+    - There are other variants of AAUAAA functioning as PAS and they have a position-dependent profile, also.
+    - Core PAS regulatory motifs are enriched at distal poly(A) sites compared to proximal sites for tandem poly(A) sites in protein-coding genes (tandem meaning the proximal PAS gives rise to a truncated form of the distal PAS 3' UTR). A variant of AAUAAA (AAUACA) does not show differential enrichment, reflecting the sequence-specific efficiency in guiding cleavage and polyadenylation.
+    - 3' end cleavage occurs ~21 nucleotides downstream of the PAS, typically adjacent to an adenosine. CPSF3 performs endonucleocytic cleavage, and the PAP addas a poly(A) tail to the cleavage product. Poly(A) binding protein 1 (PABPN1) bind to the nascent poly(A) tail, preventing the interaction between BPSF and PAP when the tail reaches ~250 nucleotides (limiting poly(A) tail length). Poly(A) tail lengths do differ and influence translational efficiency.
+    - QAPA has the drawback that low expression isoform quantification accuracy is low and the majority of experimentally determined poly(A) sites are not associated with annotated transcript isoforms (although I think QAPA tries to overcome that by merging novel sites with annotated isoforms...)
+    - In differentiation, genes with a single 3' UTR undergo changes in mRNA abundance, whereas genes with multiple 3' UTRs undergo changes in isoform ratio to achieve tissue specificity.
+    - Long and short 3' UTRs are over-represented in the soma and neurites of neurons, respectively [Ciolli, 2019](https://academic.oup.com/nar/article/47/5/2560/5258023)
+    - Activation of monocytes, B cells and effector T cells involves 3' UTR shortening [Sandberg2008](https://www.ncbi.nlm.nih.gov/pubmed/18566288). The NFATC1 transcription factor accumulkates upon T cell activation, due to possessing a short 3' UTR, triggering effector T cell activation. The switch from membrane bound to secreted IgM in B cell activation is due to 3' end processing of IgM at an APA site downstream of an intermediate exon, leading to formation of mRNA with a composite terminal exon.
+    - 25% of experimentally-determined poly(A) sites in the DB are located in introns, because the corresponding isoforms have not yet been annotated, although some recently have [Singh2018](https://www.nature.com/articles/s41467-018-04112-z)
+    - As well as tandem UTRs being processed at proximal and distal poly(A) sites, isoforms can be generated by PAS located at intronic sites, changing the protein that is expressed by truncation of the coding sequence. Alternatively, a PAS could be located in an alternative terminal exon that can be subject to alternative splicing: When spliced in, the transcript is cleaved at this PAS, when spliced out, the canonical PAS at the typical terminal exon is used (cassette terminal exon (TE)).
+    - Typically, in an individual cell, only one possible 3' UTR isoform is detected [Gruber2018kapac](https://www.nature.com/articles/s41592-018-0114-z.pdf). Therefore, correlating poly(A) patterns within individual cells and the expression level of mRNAs encoding regulatory proteins could lead to identifying additional factors determining poly(A) site selection.
+    - miRNA-mediated repression is slightly biased towards long 3' UTR transcripts, although this difference is small, as miRNA repression is most pronounced at binding sites close to 3' UTR boundaries. It has been shown that 3' UTR shortening can potentiate repression where there are miRNA binding sites located in the center of the long 3' UTR isoform.
+    - RBP binding sites are short and 'degenerate': Many proteins interact at the same site at different stages in the mRNA life cycle.
+    - In disease, changes in sequences elements can lead to loss or gain of alternative polydenylation, change 3' end processing and change mRNA expression.
+    
+- [Gruber2018tectool](https://www.nature.com/articles/s41592-018-0114-z.pdf), predicted novel isoforms containing alternative terminal exons:
+  - Used the Ensembl [transcript level support](https://www.ensembl.org/info/genome/genebuild/transcript_quality_tags.html) scheme to compare predicted sequences with the annotation to see if there was some evidence. Most predicted isoforms had Ensembl evidence. 
+  - Predictions were longer than Stringtie and Cufflinks and contained a higher percentage of canonical PASs ~21 nucleotides upstream of the PAS. TecTool also had greater inter replicate agreement than these other tools. 
+  - In a multi-tissue experiment, they found novel isoforms that were the most expressed transcript of the corresponding gene. 
+  - In a 201-T Cell single cell dataset, they found that the abundance of predicted isoforms matched the range of annotated isoforms. Considering only reads that splice into the 5' splice site of the terminal exon, once the TPM reaches 1-2, the isoform is detected in multiple cells. However, multiple isoforms were rarely present in a cell at the same time. 
+  - For a tissue bulk RNA seq dataset, they generated updated annotations for each sample, then merged the annotations of replicate samples of each tissue, to obtain a tissue-specific annotation. They do not describe how they merge. They then used Salmon to quantify transcripts.
+
+
+    
+    
+    - The mechanisms governing 3' UTR length are not fully characterised. Knockdown of individual core 3' end processing factors can both shorten and lengthen 3' UTRs
+    - The ratio of isoforms could be caused by selective degradation. Increased short 3' UTR abundance in spermatogenesis is due to selective degradation of one long UTR isoforms by Tudor domain-containing protein 6 and regulator of nonsense transcripts 2
+    
+    
+    
+    
+    
+  - There are different types of polyA site:
+    > In order of decreasing priority: TE, terminal exon; EX, exonic; IN, intronic; DS, 1,000 nt downstream of an annotated terminal exon; AE, anti-sense to an exon; AI, anti-sense to an intron; AU, 1,000 nt upstream in anti-sense direction of a transcription start site; IG, intergenic
+  - Snca in the human, has > 20 polyA sites described ([PolyASite](https://polyasite.unibas.ch/search)). 
+  
+## 6th November 2019  
+  - REL breedings - started (see personal google drive for spreadsheet).
+  - Redo PCR of REL115.3a-f, 115.2a, 117.3e, 117.2c, 123.1i, 122.1f, 122.1j
 ## 28th October 2019
 - [Google Slides of Figures](https://docs.google.com/presentation/d/1DEyPslen4YshVAra9fRdYCM5koILknd5MapfkIGl8G0/edit?usp=sharing)
 - Done three comparisons of DS/VS vs MB (2-fold, 4-fold and 8-fold cut-offs). The axon vs MB = all DS vs MB genes that are also VS vs MB, not DS+VS vs MB DESeq2 comparison. Only included genes that are IP vs Input enriched. At the 2-fold striatum vs MB level, 11/107 PD GWAS genes (from [Nalls, 2019](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=2ahUKEwjl-cGB777lAhXyQkEAHYROAcAQFjAAegQIAhAB&url=https%3A%2F%2Fwww.biorxiv.org%2Fcontent%2F10.1101%2F388165v2&usg=AOvVaw3j3ES6ys5-3TjxHKVay13h)) are dorsally enriched vs MB. 8 are ventrally enriched vs MB. CHD9, CTSB, KPNA1 are the dorsal only enriched GWAS genes.
