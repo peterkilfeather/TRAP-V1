@@ -49,7 +49,7 @@
 ## Note: requires WGCNA function "ModulePrinComps1" (included below);
 ## Note: requires "ComBat" function for batch normalization (see below).
 
-.libPaths("/fast-data/R-packages")
+# .libPaths("/fast-data/R-packages")
 
 library(affy)
 library(cluster)
