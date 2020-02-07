@@ -3,7 +3,7 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 ## 7th January 2020
-- This week have piloted using Sch1 hood. Took MB, DS, VS, CTX (from adjacent to midbrain) from 3 young, 3 old mice (OVX+/-) to obtain samples for ELISA. Ran ELISA this evening after 3 hour incubation. Signal in MB, VS and CTX, but not in DS. May require longer incubation (overnight) and also different CTX region for control sample. Alternatively, take sample from TRAP (non-REL) animal. 
+- This week have piloted using Sch1 hood. Took MB, DS, VS, CTX (from adjacent to midbrain) from 3 young, 3 old mice (OVX+/-) to obtain samples for ELISA. Ran ELISA this evening after 3 hour incubation. Signal in MB, VS and CTX, but not in DS. May require longer incubation (overnight) and also different CTX region for control sample. Alternatively, take sample from TRAP (non-REL) animal. Standard curve also did not work well. Do in duplicate next time and take care with washes to use fresh tips when washing standards? Performed 5x 350 uL washes today. Looks like wash buffer is PBS-Tween.
 - Will re-run ELISA next week using Nunc plates. 
   - Before re-running, take MB, DS, VS, CTX from 1 young, 1 old REL + 1 young TRAP mouse. Take CTX from very exterior frontal region, before dissecting other tissues.
 - Need to order more TMB (check small fridge next to antibody freezer for TMB)
