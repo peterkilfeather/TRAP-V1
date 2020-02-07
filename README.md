@@ -2,6 +2,17 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## 7th January 2020
+- This week have piloted using Sch1 hood. Took MB, DS, VS, CTX (from adjacent to midbrain) from 3 young, 3 old mice (OVX+/-) to obtain samples for ELISA. Ran ELISA this evening after 3 hour incubation. Signal in MB, VS and CTX, but not in DS. May require longer incubation (overnight) and also different CTX region for control sample. Alternatively, take sample from TRAP (non-REL) animal. 
+- Will re-run ELISA next week using Nunc plates. 
+  - Before re-running, take MB, DS, VS, CTX from 1 young, 1 old REL + 1 young TRAP mouse. Take CTX from very exterior frontal region, before dissecting other tissues.
+- Need to order more TMB (check small fridge next to antibody freezer for TMB)
+- SWH has ordered 1 ml Eppendorf DNA loBind 96-well plates. Need to test these with TRAP sample handling.
+- SWH has ordered a manual 8x 1 ml multichannel pipette. 
+- So next major stage is to decide on appropriate DS/VS dissection (to obtain signal from both striatal samples)
+  - Then perform trap on MB with 1/2x, 1/4x, 1/8x matrices, STR with 1/4x, 1/8x, 1/16x from 3 mice
+- Dounce definitely required for TRAP: Pestle does not sufficiently homogenise tissue
+  - So need 12x dounces 
 
 ## 30th January 2020
 - Taking DS/VS (new approach) and SNpc/VTA as described on 29/01/2020 from REL119.4e. Showing Guusje Haver how to extract RNA in parallel. Aim to extract, cDNA synth with VILO IV and qPCR today. Add new SNpc/VTA primers tomorrow when they arrive.
