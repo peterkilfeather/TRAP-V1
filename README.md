@@ -2,6 +2,76 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## 11th January 2020
+- Have requested 1 young REL, 1 old REL and 1 old TRAP mouse for ELISA with original striatal dissection and comparison of cortex at SNpc zone and frontal zone. Will perform incubation overnight as written for 7th January 2020.
+- Setting up for TRAP, have taken inventory of major items. Have stock for 24x matrix.
+- Preparing buffers:
+  ```
+  (Volumes for 50 ml)
+  Low-salt buffer:
+    - 20 mM HEPES KOH (1 ml 1 M)
+    - 150 mM KCl (3.75 ml 2 M)
+    - 10 mM MgCl2 (500 ul 1 M)
+    - 1% NP-40 (1x 10 % ampoule)
+    - H2O (39.75 ml)
+    + 1 Protease inhibitor tablet per 10 ml at use
+    + 0.5 mM DTT at use
+    + 100 ug/ml CHX at use
+    + 10 ul/ml rRNasin and Superasin at use
+    
+   Tissue-lysis buffer:
+    - 20 mM HEPES KOH (1 ml 1 M)
+    - 150 mM KCl (3.75 ml 2 M)
+    - 10 mM MgCl2 (500 ul 1 M)
+    - H2O (44.75 ml)
+    + 1 Protease inhibitor tablet per 10 ml at use
+    + 0.5 mM DTT at use
+    + 100 ug/ml CHX at use
+    + 10 ul/ml rRNasin and Superasin at use
+   
+   High-salt buffer:
+    - 20 mM HEPES KOH (1 ml 1 M)
+    - 350 mM KCl (8.75 ml 2 M)
+    - 10 mM MgCl2 (500 ul 1 M)
+    - 1% NP-40 (1x 10 % ampoule)
+    - H2O (34.75 ml)
+    + 0.5 mM DTT at use
+    + 100 ug/ml CHX at use
+  
+   Dissection buffer:
+    - 1x HBSS (5 ml 10x)
+    - 2.5 mM HEPES KOH (125 ul 1 M)
+    - 35 mM Glucose (1.75 ml 1 M)
+    - 4mM NaHCO3 (200 ul 1 M)
+    - H2O (42.93 ml)
+    + 100 ug/ml CHX at use
+    
+  Per TRAP, per MB, DS, VS x1, require:
+    - 3 ml Dissection Buffer
+    - 6 ml Low-salt Buffer for matrix
+    - 4 ml Lysis Buffer
+    - 20 ml High-salt Buffer
+  
+  So use 100 ul rRNAsin/Superasin per.
+  ```
+  - Preparing 3x matrix:
+  ```
+  1.  Thaw 3x of each mAb
+  2.  Resuspend dynabeads by vortexing for > 30 sec
+  3.  Wash 3x in PBS
+  4.  Wash in solution A (0.1 M NaOH, 0.05 M NaCl, in DEPC-H2O)
+  5.  Wash in in solution B (0.1 M NaCl in DEPC-H2O)
+  6.  Resuspend biotinylated protein L in 500 ul PBS (to 1 ug/ul) and aliquot into 4x 120 ul volumes and freeze at -20 *C
+  7.  Incubate 9 mg (900 ul original volume) dynabeads with 360 ul biotinylated protein L for 1 hour with end over end rotation
+  8.  Perform 5x washes with PBS 3 % BSA sterile-filtered
+  9.  Incubate beads with 3x mAb room temperature overnight, end over end rotation
+  10. Wash 6x in LS buffer, 1 ml per wash
+  11. Add 0.03% proclin 300 to the final product
+  12. Store in an Eppendorf Protein LoBind tube at 4*C
+  ```
+  
+  
+
 ## 7th January 2020
 - This week have piloted using Sch1 hood. Took MB, DS, VS, CTX (from adjacent to midbrain) from 3 young, 3 old mice (OVX+/-) to obtain samples for ELISA. Ran ELISA this evening after 3 hour incubation. Signal in MB, VS and CTX, but not in DS. May require longer incubation (overnight) and also different CTX region for control sample. Alternatively, take sample from TRAP (non-REL) animal. Standard curve also did not work well. Do in duplicate next time and take care with washes to use fresh tips when washing standards? Performed 5x 350 uL washes today. Looks like wash buffer is PBS-Tween.
 - Will re-run ELISA next week using Nunc plates. 
