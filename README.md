@@ -2,7 +2,17 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
-## 11th January 2020
+  
+##
+- So far have collected MB/DS/VS ELISA samples from 8 REL and 1 TRAP mouse. Have ordered new Abcam GFP ELISA kit.
+- Performed TRAP on 3 REL mice, MB/DS/VS with matrix series: (MB: 0.5, 0.25, 0.125x, DS: 0.25, 0.125, 0.0625x, VS: 0.25, 0.125, 0.0625x).
+  - Obtained RNA of good RIN from all samples and performed Smartseq2 with 25 cycles on 2.3 ul of elute (not normalised before smart seq). Yielded ~ 2-500 ng cDNA for qPCR after
+  - qPCR shows greater enrichment in TH/DAT than 2018 and potentially some depletion of GAD/GFAP (calculations to follow)
+  - 96 well plate works well, but needs optimising in weighing down so it doesn't float in water
+  
+- Wednesday 19th plan to trial a 1 mouse per condition TRAP. 6 dounces, rinse between. Whichever matrix concentration appeared optimal (likely smallest possible).
+  
+## 11th February 2020
 - Have requested 1 young REL, 1 old REL and 1 old TRAP mouse for ELISA with original striatal dissection and comparison of cortex at SNpc zone and frontal zone. Will perform incubation overnight as written for 7th January 2020.
 - Setting up for TRAP, have taken inventory of major items. Have stock for 24x matrix.
 - Preparing buffers:
@@ -69,10 +79,8 @@ Jakob Sca
   11. Add 0.03% proclin 300 to the final product
   12. Store in an Eppendorf Protein LoBind tube at 4*C
   ```
-  
-  
 
-## 7th January 2020
+## 7th February 2020
 - This week have piloted using Sch1 hood. Took MB, DS, VS, CTX (from adjacent to midbrain) from 3 young, 3 old mice (OVX+/-) to obtain samples for ELISA. Ran ELISA this evening after 3 hour incubation. Signal in MB, VS and CTX, but not in DS. May require longer incubation (overnight) and also different CTX region for control sample. Alternatively, take sample from TRAP (non-REL) animal. Standard curve also did not work well. Do in duplicate next time and take care with washes to use fresh tips when washing standards? Performed 5x 350 uL washes today. Looks like wash buffer is PBS-Tween.
 - Will re-run ELISA next week using Nunc plates. 
   - Before re-running, take MB, DS, VS, CTX from 1 young, 1 old REL + 1 young TRAP mouse. Take CTX from very exterior frontal region, before dissecting other tissues.
