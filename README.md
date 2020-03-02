@@ -3,6 +3,14 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
   
+## 2nd March 2020
+- Week before last, performed TRAP on 4x REL mice, 0.125x MB, 0.0625x DS/VS, 6 dounces, 12 samples, 96 well plate wash, p1200 multichannel, new buffers made up in a batch to cover all TRAP collections, had to use SIGMA NP-40 and made up KCl 2M and sterile filtered before using. Ribogreen looked positive for successful isolation of TRAP RNA and washing of beads, with more in VS than DS for all samples. 
+- Last week, performed batches 1 and 2 of sample collection. At least two problems:
+  - Some samples contained far too much RNA. This could be due to inadequate washing, or a property of the new bead matrix? This always happened in triplicate, also (ie. MB, DS and VS of one animal contained far too much RNA), so could this also be due to the lysis buffer? Fluorochem NP-40 is used in the lysis buffer, not SIGMA.
+  - Some samples contained no/almost no RNA in the DS/VS samples. This could be a problem with washing/bead matrix/buffers.
+- Plan is to switch to using a P20-P300 12-channel pipette, using 600 uL HS buffer per wash with the pipette set at 300 ul. I will switch to performing 6 washes, as per 2018, and will thoroughly mix before magneting. I will also make up new LS/LYS/HS buffers. On Tuesday 3rd, I will do TRAP with 4 mice, MB/DS/VS, 2 mice using 0.125x MB, 0.0625x DS/VS, 2 mice on 0.25x MB, 0.125x DS/VS with the P300 multichannel and 6 washes to evaluate.
+- The issue of no/very little RNA requires comparison with a new bead matrix. If Tuesday/Wednesday's experiment still shows samples with no RNA, I will make 3x of new bead matrix (using new LS buffer) for comparison.
+  
 ##
 - So far have collected MB/DS/VS ELISA samples from 8 REL and 1 TRAP mouse. Have ordered new Abcam GFP ELISA kit.
 - Performed TRAP on 3 REL mice, MB/DS/VS with matrix series: (MB: 0.5, 0.25, 0.125x, DS: 0.25, 0.125, 0.0625x, VS: 0.25, 0.125, 0.0625x).
