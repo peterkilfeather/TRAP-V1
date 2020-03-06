@@ -3,6 +3,14 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
   
+## 6th March 2020
+- This week, performed two TRAPs:
+  - First TRAP (3rd March) using 4 mice, new LYS/HS buffers with bought in KCl stock. Switched to P300 multichannel for HS washes and performed 6x 300 ul washes in 600 ul total HS volume. Problem of extra nonspecific RNA appears to be solved.
+  - Second TRAP (5th March) using newly prepared bead matrix: Followed Heiman protocol, using 1 hour PL incubation and 1.5 hour antibody incubation. Made 4x matrix in 1x 1.5 ml protein lo-bind tube. Made new LS buffer with Sigma NP-40 for this. Used 1X matrix for experiment: 0.125x for MB, 0.0625x for DS/VS. Striatal RNA reliably detected across all samples (see ribogreen).
+  - So plan to make more matrix and test function in 1/2 mice before applying to cohort.
+- Meeting with NCR/GH:
+  - Meeting with RWM requested for week of 16th
+  
 ## 2nd March 2020
 - Week before last, performed TRAP on 4x REL mice, 0.125x MB, 0.0625x DS/VS, 6 dounces, 12 samples, 96 well plate wash, p1200 multichannel, new buffers made up in a batch to cover all TRAP collections, had to use SIGMA NP-40 and made up KCl 2M and sterile filtered before using. Ribogreen looked positive for successful isolation of TRAP RNA and washing of beads, with more in VS than DS for all samples. 
 - Last week, performed batches 1 and 2 of sample collection. At least two problems:
