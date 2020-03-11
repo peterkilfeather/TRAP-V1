@@ -11,15 +11,31 @@ Jakob Sca
     - Start putting together powerpoint and figures of ELISA and TRAPs from this year
       - Perform second ELISA on first batch of samples
         - Check what conc the samples were normalised to on BCA
+    - Sample collection:
+      - TRAP on hold until after RWM meeting
+      - Need to reallocate mice to frozen (OCT) samples
+      - Need to add oldest mice to collection list (including non-REL mice)
+      - This Friday (13th March), collecting all aged TRAP and single-housed REL brains for OCT (21 mice)
     - LCM:
       - Write github protocol for freezing, sectioning, and staining that allows brightfield visualisation of TH +ve cells
-      - Call Carl Zeiss to confirm delivery time
-      - Sectioning with Greg Daubney this Thursday: 10-12:00
+      - Call Carl Zeiss to confirm delivery time. PO not received - asked finance for update
+      - Sectioning with Greg Daubney this Thursday: 10-12:00:
+        - I have 4 frozen brains: 
+          1:  TRAP114.1c OVX unknown, cerebellum removed and placed against base of MB
+          2:  TRAP111.1f OVX +ve, cerebellum removed and placed against base of MB
+          3:  REL126.1g OVX -ve, half cerebellum cut, rostral brain cut, placed against base of STR, to section cerebellum into MB first
+          4:  TRAP111.3f OVX -ve, half cerebellum cut, rostral brain cut, placed against base of STR, to section cerebellum into MB first
     - Spatial transcriptomics:
       - Write github protocol for freezing, sectioning and optimisation experiment from ST manual
       - Write github protocol for preparing oligo-dt slides, as described in Surmodics codelink manual
     - Long-read sequencing:
       - Do nanopore cDNA RT of OVX+ and OVX- TRAP IP MB RNA and use UTR primers to amplify full length transcript.
+        - Using RNA from MB IP of:
+          1:  REL112.3d OVX +ve
+          2:  REL113.3a OVX -ve
+        - Used 9 ul RNA in RT reaction. Performed 25 cycle, 2 min extension PCR with PRM primers and LongAmp Taq.
+        - Will then quantify and use x ng cDNA for UTR PCR
+        - Need to aliquot IDT VNP and SSP
       - Primers to internal exons have been ordered:
         - Perform 'RACE' amplification, with touchdown PCR when these have arrived (Thursday)
         
