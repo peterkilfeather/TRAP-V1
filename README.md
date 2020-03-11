@@ -10,7 +10,7 @@ Jakob Sca
   - Priorities:
     - Start putting together powerpoint and figures of ELISA and TRAPs from this year
       - Perform second ELISA on first batch of samples
-        - Check what conc the samples were normalised to on BCA
+        - Running overnight
     - Sample collection:
       - TRAP on hold until after RWM meeting
       - Need to reallocate mice to frozen (OCT) samples
