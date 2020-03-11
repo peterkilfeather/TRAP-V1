@@ -3,6 +3,27 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
   
+## 11th March 2020
+- Meeting with RWM on 16th at 9:30
+  - Will discuss images of striatum GFP taken by GH. 
+  - Currently holding off collecting TRAP samples, as would be more efficient and cheaper to only collect MB samples, but need to ask RWM about this on Monday.
+  - Priorities:
+    - Start putting together powerpoint and figures of ELISA and TRAPs from this year
+      - Perform second ELISA on first batch of samples
+        - Check what conc the samples were normalised to on BCA
+    - LCM:
+      - Write github protocol for freezing, sectioning, and staining that allows brightfield visualisation of TH +ve cells
+      - Call Carl Zeiss to confirm delivery time
+      - Sectioning with Greg Daubney this Thursday: 10-12:00
+    - Spatial transcriptomics:
+      - Write github protocol for freezing, sectioning and optimisation experiment from ST manual
+      - Write github protocol for preparing oligo-dt slides, as described in Surmodics codelink manual
+    - Long-read sequencing:
+      - Do nanopore cDNA RT of OVX+ and OVX- TRAP IP MB RNA and use UTR primers to amplify full length transcript.
+      - Primers to internal exons have been ordered:
+        - Perform 'RACE' amplification, with touchdown PCR when these have arrived (Thursday)
+        
+  
 ## 6th March 2020
 - This week, performed two TRAPs:
   - First TRAP (3rd March) using 4 mice, new LYS/HS buffers with bought in KCl stock. Switched to P300 multichannel for HS washes and performed 6x 300 ul washes in 600 ul total HS volume. Problem of extra nonspecific RNA appears to be solved.
