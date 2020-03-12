@@ -5,23 +5,37 @@ Jakob Sca
  
 ## 12th March 2020
 - LCM staining protocol
-  - Start point with sections on slides. Can either do cresyl violet/histogene staining or immuno. This is immuno:
+  - Start point with sections on slides.
     ```
+    - Prepare 15 ml tubes
+    - Prepare 3 x falcons with PBS + 1 x ddH2O
+    - Prepare 1 x falcon with ice-cold acetone
+    - Prepare 0.25% Triton X-100 in PBS (500 ul per slide)
+    - Prepare primary antibody
+    - Prepare secondary antibody
+    - Prepare 2.5 ml of ABC solution (covered with foil and in motion for 30 min before use)
+    - Prepare 2.5 ml of DAB solution (covered in foil and in motion for 2-3 min before use)
+    - Dissolve solid cresyl violet acetate (e.g. ALDRICH #86,098-0) at a concentration of 1% (w/v) in 75% EtOH at room temperature with agitation/stirring for several hours to overnight
+    - Adjust pH of cresyl violet solution to pH 8.0 with 3M Tris-HCl
+    - Filter the staining solution before use to remove unsolubilized powder
+    - (Sometimes Lot to Lot variations in the purchased cresyl violet powder can lead to weaker staining results if the dye content is below 75%)
+    
     1.  Place slide in ice cold acetone for 5 min
     2.  Dry slide on lint-free tissue after every solution step
     3.  Wash slide in PBS 1 min, 3 x
     4.  Incubate ~250 ul of rabbit anti-TH 1/25 in PBS with 0.25% Triton X-100 for 4 min
-    5.  Wash slide in PBS **2** min, 3 x
+    5.  Wash slide in PBS 2 min, 3 x
     6.  Incubate ~250 ul of biotinylated anti-rabbit 1/25 in PBS with 0.25% Triton X-100 for 4 min
     7.  Wash slide in PBS 2 min, 3 x
     8.  Incubate ~250 ul of ABC solution for 4 min
     9.  Wash slide in PBS 2 min, 3 x
     10. Incubate ~250 ul of DAB solution for 1-2 min
-    11. Wash slide in PBS 2 min, **2** x
-    12. Wash slide in ddH2O for **30** s
-    13. Dehydrate by moving slide through 50, 75, 95 and 99.7% EtOH, 30 s each
-    14. Air-dry slides for 3 min
-    15. Proceed to LCM
+    11. Wash slide in PBS 2 min, 2 x
+    12. Incubate ~250 ul of cresyl violet solution for 20-60 s
+    13. Wash slide in ddH2O for 30 s
+    14. Dehydrate by moving slide through 50, 75, 95 and 99.7% EtOH, 30 s each
+    15. Air-dry slides for 3 min
+    16. Proceed to LCM
     ```
 ## 11th March 2020
 - Meeting with RWM on 16th at 9:30
