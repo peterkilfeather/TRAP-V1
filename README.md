@@ -2,7 +2,25 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
-  
+ 
+## 12th March 2020
+- LCM staining protocol
+  - Start point with sections on slides. Can either do cresyl violet/histogene staining or immuno. This is immuno:
+    1.  Place slide in ice cold acetone for 5 min
+    2.  Dry slide on lint-free tissue after every solution step
+    3.  Wash slide in PBS 1 min, 3 x
+    4.  Incubate ~250 ul of rabbit anti-TH 1/25 in PBS with 0.25% Triton X-100 for 4 min
+    5.  Wash slide in PBS **2** min, 3 x
+    6.  Incubate ~250 ul of biotinylated anti-rabbit 1/25 in PBS with 0.25% Triton X-100 for 4 min
+    7.  Wash slide in PBS 2 min, 3 x
+    8.  Incubate ~250 ul of ABC solution for 4 min
+    9.  Wash slide in PBS 2 min, 3 x
+    10. Incubate ~250 ul of DAB solution for 1-2 min
+    11. Wash slide in PBS 2 min, **2** x
+    12. Wash slide in ddH2O for **30** s
+    13. Dehydrate by moving slide through 50, 75, 95 and 99.7% EtOH, 30 s each
+    14. Air-dry slides for 3 min
+    15. Proceed to LCM
 ## 11th March 2020
 - Meeting with RWM on 16th at 9:30
   - Will discuss images of striatum GFP taken by GH. 
