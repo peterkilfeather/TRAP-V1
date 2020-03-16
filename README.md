@@ -3,6 +3,20 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
  
+## 16th March 2020
+See 11th March for updates.
+
+- **LCM/ST**: Over weekend, started optimising protocol for rapid DAB staining of TH, following [LCM-Seq protocol](https://www.ncbi.nlm.nih.gov/pubmed/29130192), published in [Nature comms, 2016](https://www.nature.com/articles/ncomms12139). 
+  - 25 second cresyl violet exposure + 1/25 primary and secondary antibody concentrations work, 4 min incubation with antibodies and ABC solution, DAB. 30 second PBS washes, instead of 2 min.
+  - Imaged on EVOS: dopamine neurons clearly labelled
+  - Extracted RNA from sections and obtained 400 ng from 4 sections total.
+    - RIN from fresh section: 8.8
+    - RIN after staining: 5.3
+  - Next step to use 1U/ul rRNasin in antibodies, ABC and DAB solution, plus use cold PBS for washes.
+  - Ordered polyvinylsulfonic acid to test as cheap RNase inhibitor from [Earl, 2018 paper](https://www.ncbi.nlm.nih.gov/pubmed/28662363). 
+  - Also, could investigate shorter wash conditions (dip in PBS tubes 1 and 2, 30 seconds in tube 3) and shorter incubation conditions with antibodies. 
+  - Also, could test HRP-conjugated secondary.
+ 
 ## 12th March 2020
 - LCM staining protocol
   - Start point with sections on slides.
@@ -39,20 +53,20 @@ Jakob Sca
     ```
 ## 11th March 2020
 - Meeting with RWM on 16th at 9:30
-  - Will discuss images of striatum GFP taken by GH. 
+  - Will discuss images of striatum GFP taken by GH. *16th: Discussed: RWM wants samples to be collected and frozen. Investigate strategies to try to deconvolute dopaminergic signal from the striatal TRAP signal. So looking at doing at least 8x TRAPs with all three regions, spread over 4 weeks. Currently have 3x working matrix made, require 10x matrix for 10x three-region TRAPs using 0.125x MB and 0.0625x DS/VS. Plan to make 8x matrix Tuesday morning and test on 4 REL mice. Keep the samples, as will prove useful in validation/optimisation of long-read/polyA protocols. Also freezing 5 mice brains in OCT.*
   - Currently holding off collecting TRAP samples, as would be more efficient and cheaper to only collect MB samples, but need to ask RWM about this on Monday.
   - Priorities:
     - Start putting together powerpoint and figures of ELISA and TRAPs from this year
       - Perform second ELISA on first batch of samples
-        - Running overnight
+        - Running overnight *16th: Done and data added to R project for plotting*
     - Sample collection:
       - TRAP on hold until after RWM meeting
-      - Need to reallocate mice to frozen (OCT) samples
+      - Need to reallocate mice to frozen (OCT) samples *Done, see [cohort design](https://docs.google.com/spreadsheets/d/1G7gFk-47ZYPr35PmzrE9EEDOGtgAOlgfBo_AK0poaXY/edit#gid=238579369)
       - Need to add oldest mice to collection list (including non-REL mice)
-      - This Friday (13th March), collecting all aged TRAP and single-housed REL brains for OCT (21 mice)
+      - This Friday (13th March), collecting aged TRAP and all single-housed REL brains for OCT (15 mice) *16th: Done, in -20*
     - LCM:
       - Write github protocol for freezing, sectioning, and staining that allows brightfield visualisation of TH +ve cells
-      - Call Carl Zeiss to confirm delivery time. PO not received - asked finance for update
+      - Call Carl Zeiss to confirm delivery time. PO not received - asked finance for update *16th: PO received, waiting on delivery estimate*
       - Sectioning with Greg Daubney this Thursday: 10-12:00:
         - I have 4 frozen brains: 
           1:  TRAP114.1c OVX unknown, cerebellum removed and placed against base of MB
