@@ -3,6 +3,8 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
  
+![](https://github.com/peterkilfeather/pk_trap/blob/master/TRAP.png)
+ 
 ## 16th March 2020
 See 11th March for updates.
 
