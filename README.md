@@ -56,7 +56,6 @@ See 11th March for updates.
 ## 11th March 2020
 - Meeting with RWM on 16th at 9:30
   - Will discuss images of striatum GFP taken by GH. *16th: Discussed: RWM wants samples to be collected and frozen. Investigate strategies to try to deconvolute dopaminergic signal from the striatal TRAP signal. So looking at doing at least 8x TRAPs with all three regions, spread over 4 weeks. Currently have 3x working matrix made, require 10x matrix for 10x three-region TRAPs using 0.125x MB and 0.0625x DS/VS. Plan to make 8x matrix Tuesday morning and test on 4 REL mice. Keep the samples, as will prove useful in validation/optimisation of long-read/polyA protocols. Also freezing 5 mice brains in OCT.*
-  - Currently holding off collecting TRAP samples, as would be more efficient and cheaper to only collect MB samples, but need to ask RWM about this on Monday.
   - Priorities:
     - Start putting together powerpoint and figures of ELISA and TRAPs from this year
       - Perform second ELISA on first batch of samples
