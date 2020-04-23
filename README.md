@@ -3,6 +3,17 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
  
+## 22nd April 2020
+Examining difference between young and old midbrain samples. Plan to look at DGE, DTU/Splicing, Mutation level, 3' UTR usage and length:
+  - DGE example: [Normal aging induces A1-like astrocyte reactivity](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5828643/)
+  - Splicing example: [Integrative transcriptome analyses of the aging brain implicate altered splicing in Alzheimer’s disease susceptibility](https://www.nature.com/articles/s41588-018-0238-1)
+  - Mutation example: [Aging and neurodegeneration are associated with increased mutations in single human neurons](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5831169/)
+  
+  
+```
+for i in *1.fastq.gz ; do fq1=$i ; fq2=${i%1.fastq.gz}2.fastq.gz ; sample_code=$(echo $i | cut -d '_' -f 3) ; output=${i%_1.fastq.gz}.bam ; zcat $i | head -n 1 | awk -v sample_code=$sample_code -v fq1=$fq1 -v fq2=$fq2 -v output=$output -F":" '{ID = $3 "." $4} {PU = $3 "." $4 "." sample_code} {SM = sample_code} {PL = "ILLUMINA"} {LB = sample_code ".LIB1"} {OFS=""} { print "picard FastqToSam FASTQ=" fq1 " FASTQ2=" fq2 " OUTPUT=" output " READ_GROUP_NAME=" ID " SAMPLE_NAME=" sample_code " LIBRARY_NAME=" LB " PLATFORM_UNIT=" PU " PLATFORM=" PL " SEQUENCING_CENTER=WTCHG" }'; done > fastq_to_sam.sh
+```
+  
 ![](https://github.com/peterkilfeather/pk_trap/blob/master/TRAP.png)
  
 ## 16th March 2020
