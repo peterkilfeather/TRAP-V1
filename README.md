@@ -15,7 +15,7 @@ for i in *1.fastq.gz ; do fq1=$i ; fq2=${i%1.fastq.gz}2.fastq.gz ; sample_code=$
 ```
 
 ```
-for i in *.bam ; do echo STAR   --runThreadN 8   --genomeDir /home/peter/april_2020/star_references/gencode_vM24_first_pass_PK1/   --genomeLoad LoadAndKeep   --readFilesType SAM   PE      --readFilesIn $i      --readFilesCommand samtools   view      --outFileNamePrefix /home/peter/april_2020/star/${i%.bam}_pass_2_   --outReadsUnmapped Fastx   --outSAMtype BAM   Unsorted      --outSAMstrandField intronMotif   --sjdbOverhang 74   --twopassMode None --outSAMattrRGline $(samtools view -H $i | grep @RG | awk '{OFS=", "} {print $2,$3,$4,$5,$6}') ; done
+for i in *.bam ; do echo STAR   --runThreadN 8   --genomeDir /home/peter/april_2020/star_references/gencode_vM24_first_pass_PK1/   --genomeLoad LoadAndKeep   --readFilesType SAM   PE      --readFilesIn $i      --readFilesCommand samtools   view      --outFileNamePrefix /home/peter/april_2020/star/${i%.bam}_pass_2_   --outReadsUnmapped Fastx   --outSAMtype BAM   Unsorted      --outSAMstrandField intronMotif   --sjdbOverhang 74   --twopassMode None --outSAMattrRGline $(samtools view -H $i | grep @RG | awk '{OFS=" "} {print $2,$3,$4,$5,$6}') ; done
 ```
   
 ```
