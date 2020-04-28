@@ -28,7 +28,10 @@ for i in $(ls *.bam | cut -d _ -f 3 | cut -d . -f 1 | sort | uniq ) ; do bam_inp
 ```
 
 ```
-cat P170742_B03\&B04_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $4, "_", $5, "\t", $1}' | sed '1i sample_code\tsample_ID' > /zfs/analysis/neurochip/sample_code_to_id.txt
+cat P170742_B01\&B02_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $1, "\t", $1}' | tr [a-z] [A-Z] | sed '1i Sample ID\tsample_ID' > /zfs/analysis/neurochip/sample_code_to_id_section1.txt
+cat P170742_B03\&B04_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $4, "_", $5, "\t", $1}' | tr [a-z] [A-Z] > /zfs/analysis/neurochip/sample_code_to_id_section2.txt
+cat P170742_B05\&B06_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $4, "_", $5, "\t", $1}' | tr [a-z] [A-Z] > /zfs/analysis/neurochip/sample_code_to_id_section3.txt
+cat sample_code_to_id_section1.txt sample_code_to_id_section2.txt sample_code_to_id_section3.txt > sample_code_to_id.txt
 ```
 
 ![](https://github.com/peterkilfeather/pk_trap/blob/master/TRAP.png)
