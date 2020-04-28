@@ -21,7 +21,12 @@ for i in *.bam ; do echo STAR   --runThreadN 8   --genomeDir /home/peter/april_2
 ```
 sed '/^\(GL\|JH\)/d' first_pass_SJ_out_KW.tab | sed 's/^/chr/' > first_pass_SJ_out_KW.tab2
 ```
-  
+```
+for i in $(ls *.bam | cut -d _ -f 3 | cut -d . -f 1 | sort | uniq ) ; do bam_input="" ; for j in $(ls *${i}.bam) ; do bam_input="$bam_input I=$j" ; done ; echo picard MarkDuplicates $bam_input O=/tank/${i}_dedup.bam M=/tank/${i}_dup_metrics.txt ; done > mark_dups_command_list
+
+#then feed into GNU parallel
+```
+
 ![](https://github.com/peterkilfeather/pk_trap/blob/master/TRAP.png)
  
 ## 16th March 2020
