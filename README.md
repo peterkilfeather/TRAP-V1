@@ -3,7 +3,7 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
  
-## 22nd April 2020
+## 22nd - 28th April 2020
 Examining difference between young and old midbrain samples. Plan to look at DGE, DTU/Splicing, Mutation level, 3' UTR usage and length:
   - DGE example: [Normal aging induces A1-like astrocyte reactivity](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5828643/)
   - Splicing example: [Integrative transcriptome analyses of the aging brain implicate altered splicing in Alzheimer’s disease susceptibility](https://www.nature.com/articles/s41588-018-0238-1)
@@ -25,6 +25,10 @@ sed '/^\(GL\|JH\)/d' first_pass_SJ_out_KW.tab | sed 's/^/chr/' > first_pass_SJ_o
 for i in $(ls *.bam | cut -d _ -f 3 | cut -d . -f 1 | sort | uniq ) ; do bam_input="" ; for j in $(ls *${i}.bam) ; do bam_input="$bam_input I=$j" ; done ; echo picard MarkDuplicates $bam_input O=/tank/${i}_dedup.bam M=/tank/${i}_dup_metrics.txt ; done > mark_dups_command_list
 
 #then feed into GNU parallel
+```
+
+```
+cat P170742_B03\&B04_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $4, "_", $5, "\t", $1}' | sed '1i sample_code\tsample_ID' > /zfs/analysis/neurochip/sample_code_to_id.txt
 ```
 
 ![](https://github.com/peterkilfeather/pk_trap/blob/master/TRAP.png)
