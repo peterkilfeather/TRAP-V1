@@ -2,6 +2,13 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## Leafcutter
+```
+for i in /zfs/analysis/pk_trap/bam_april2020/*sorted.bam ; do ./scripts/bam2junc.sh $i ${i%.bam}.junc ; done
+python /home/peter/april_2020/trap/leafcutter/clustering/leafcutter_cluster.py -j /zfs/analysis/pk_trap/bam_april2020/junc_files.txt -m 50 -o /zfs/analysis/pk_trap/bam_april2020/intron_cluster -l 500000
+
+
+```
  
 ## 22nd - 28th April 2020
 Examining difference between young and old midbrain samples. Plan to look at DGE, DTU/Splicing, Mutation level, 3' UTR usage and length:
