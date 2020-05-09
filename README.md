@@ -2,7 +2,45 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+## Leafcutter
+```
+for i in /zfs/analysis/pk_trap/bam_april2020/*sorted.bam ; do ./scripts/bam2junc.sh $i ${i%.bam}.junc ; done
+python /home/peter/april_2020/trap/leafcutter/clustering/leafcutter_cluster.py -j /zfs/analysis/pk_trap/bam_april2020/junc_files.txt -m 50 -o /zfs/analysis/pk_trap/bam_april2020/intron_cluster -l 500000
+
+
+```
  
+## 22nd - 28th April 2020
+Examining difference between young and old midbrain samples. Plan to look at DGE, DTU/Splicing, Mutation level, 3' UTR usage and length:
+  - DGE example: [Normal aging induces A1-like astrocyte reactivity](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5828643/)
+  - Splicing example: [Integrative transcriptome analyses of the aging brain implicate altered splicing in Alzheimer’s disease susceptibility](https://www.nature.com/articles/s41588-018-0238-1)
+  - Mutation example: [Aging and neurodegeneration are associated with increased mutations in single human neurons](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5831169/)
+  
+  
+```
+for i in *1.fastq.gz ; do fq1=$i ; fq2=${i%1.fastq.gz}2.fastq.gz ; sample_code=$(echo $i | cut -d '_' -f 3) ; output=${i%_1.fastq.gz}.bam ; zcat $i | head -n 1 | awk -v sample_code=$sample_code -v fq1=$fq1 -v fq2=$fq2 -v output=$output -F":" '{ID = $3 "." $4} {PU = $3 "." $4 "." sample_code} {SM = sample_code} {PL = "ILLUMINA"} {LB = sample_code ".LIB1"} {OFS=""} { print "picard FastqToSam FASTQ=" fq1 " FASTQ2=" fq2 " OUTPUT=" output " READ_GROUP_NAME=" ID " SAMPLE_NAME=" sample_code " LIBRARY_NAME=" LB " PLATFORM_UNIT=" PU " PLATFORM=" PL " SEQUENCING_CENTER=WTCHG" }'; done > fastq_to_sam.sh
+```
+
+```
+for i in *.bam ; do echo STAR   --runThreadN 8   --genomeDir /home/peter/april_2020/star_references/gencode_vM24_first_pass_PK1/   --genomeLoad LoadAndKeep   --readFilesType SAM   PE      --readFilesIn $i      --readFilesCommand samtools   view      --outFileNamePrefix /home/peter/april_2020/star/${i%.bam}_pass_2_   --outReadsUnmapped Fastx   --outSAMtype BAM   Unsorted      --outSAMstrandField intronMotif   --sjdbOverhang 74   --twopassMode None --outSAMattrRGline $(samtools view -H $i | grep @RG | awk '{OFS=" "} {print $2,$3,$4,$5,$6}') ; done
+```
+  
+```
+sed '/^\(GL\|JH\)/d' first_pass_SJ_out_KW.tab | sed 's/^/chr/' > first_pass_SJ_out_KW.tab2
+```
+```
+for i in $(ls *.bam | cut -d _ -f 3 | cut -d . -f 1 | sort | uniq ) ; do bam_input="" ; for j in $(ls *${i}.bam) ; do bam_input="$bam_input I=$j" ; done ; echo picard MarkDuplicates $bam_input O=/tank/${i}_dedup.bam M=/tank/${i}_dup_metrics.txt ; done > mark_dups_command_list
+
+#then feed into GNU parallel
+```
+
+```
+cat P170742_B01\&B02_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $1, "\t", $1}' | tr [a-z] [A-Z] | sed '1i Sample ID\tsample_ID' > /zfs/analysis/neurochip/sample_code_to_id_section1.txt
+cat P170742_B03\&B04_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $4, "_", $5, "\t", $1}' | tr [a-z] [A-Z] > /zfs/analysis/neurochip/sample_code_to_id_section2.txt
+cat P170742_B05\&B06_SampleSheet.csv | tr -dc '[:print:]\n' | awk  'NR>11 {print $0}' | awk 'BEGIN{FS=",";OFS=""}{print $4, "_", $5, "\t", $1}' | tr [a-z] [A-Z] > /zfs/analysis/neurochip/sample_code_to_id_section3.txt
+cat sample_code_to_id_section1.txt sample_code_to_id_section2.txt sample_code_to_id_section3.txt > sample_code_to_id.txt
+```
+
 ![](https://github.com/peterkilfeather/pk_trap/blob/master/TRAP.png)
  
 ## 16th March 2020
