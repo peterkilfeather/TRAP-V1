@@ -1,0 +1,282 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+#Set anno to mouse
+anno_version <- anno_mmus
+```
+
+
+```{r}
+# **18m IP vs 3m IP PK1 MB**
+
+name = 'PK1_18mMB_ip_vs_3mMB_ip'
+
+metadata_filter = "ip == 'ip' & outlier == 'n' & batch_trap %in% c('b3') & region %in% c('mb') & ip_pool == 'n'"
+
+design <- ~ collection_day + age
+
+min_counts = 10
+
+reference_column <- 'age'
+reference_level <- 'young'
+
+run_deseq()
+```
+
+```{r}
+# **18m IP vs 3m IP KW2 MB**
+
+name = 'KW2_18mMB_ip_vs_3mMB_ip'
+
+metadata_filter = "ip == 'ip' & outlier == 'n' & batch_trap %in% c('b2') & region %in% c('mb') & ip_pool == 'n'"
+
+design <- ~ collection_day + age
+
+min_counts = 10
+
+reference_column <- 'age'
+reference_level <- 'young'
+
+run_deseq()
+```
+
+```{r}
+sample_metadata %>% filter(batch_trap == 'b3' & outlier == 'n' & region == 'mb' & ip == 'ip') %>% select(sample_name)
+```
+```{r}
+sample_metadata_mb_ip_young_PK1 <- sample_metadata %>% 
+  filter(outlier == 'n' & region == 'mb' & ip == 'ip' & age == 'young' & batch_trap == 'b3' & ip_pool == 'n')
+
+sample_metadata_mb_ip_old_PK1 <- sample_metadata %>% 
+  filter(outlier == 'n' & region == 'mb' & ip == 'ip' & age == 'old' & batch_trap == 'b3' & ip_pool == 'n')
+
+sample_metadata_mb_ip_young_KW2 <- sample_metadata %>% 
+  filter(outlier == 'n' & region == 'mb' & ip == 'ip' & age == 'young' & batch_trap == 'b2' & ip_pool == 'n')
+
+sample_metadata_mb_ip_old_KW2 <- sample_metadata %>% 
+  filter(outlier == 'n' & region == 'mb' & ip == 'ip' & age == 'old' & batch_trap == 'b2' & ip_pool == 'n')
+```
+
+```{r}
+sample_n(sample_metadata_mb_ip_old_KW2, 5)
+```
+
+```{r}
+
+# from KW2 and PK1 separately;
+# take 10 random samples (without replacement) of 2 to length(samplenumber), by asking if current subset number is less than length(samplenumber) and incrementing if so;
+# calculate diff exp genes;
+# calculate number of DEGs and input to table with number of samples;
+# plot number of DEGs vs number of samples and fit curve
+
+design = ~ age
+reference_column <- 'age'
+reference_level <- 'young'
+
+n_degs_tib = tibble('n_young' = numeric(), 'n_old' = numeric(), 'n_degs' = numeric())
+
+young_samples = 3
+old_samples = 3
+
+while (young_samples <= length(sample_metadata_mb_ip_young_KW2$sample_name) & 
+    old_samples <= length(sample_metadata_mb_ip_old_KW2$sample_name)) {
+  for (i in 1:10) {
+    young_subset = sample_n(sample_metadata_mb_ip_young_KW2, young_samples)
+    old_subset = sample_n(sample_metadata_mb_ip_old_KW2, old_samples)
+    
+    sample_metadata_subset = bind_rows(young_subset, old_subset)
+    
+    files = file.path(kallisto_path, sample_metadata_subset$sample_code, "abundance.h5")
+    names(files) = sample_metadata_subset$sample_name
+    txi = tximport(files, type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
+    dds = DESeqDataSetFromTximport(txi, colData = sample_metadata_subset, design = design)
+    dds[[paste(reference_column)]] = relevel(dds[[paste(reference_column)]], ref = reference_level)
+    keep_feature = rowMeans(counts(dds)) >= min_counts
+    dds_removed = dds[!keep_feature, ]
+    dds = dds[keep_feature, ]
+    dds = DESeq(dds, minReplicatesForReplace = replicate_replace)
+    contrast_name = tail(resultsNames(dds), n=1)
+    contrast_split = strsplit(contrast_name, '_')
+    contrast = c(contrast_split[[1]][1], contrast_split[[1]][2], contrast_split[[1]][4])
+    res = results(dds, alpha = alpha, lfcThreshold = res_lfc, contrast = contrast, independentFiltering = T)
+    
+    n_degs <- res %>%
+      data.frame() %>%
+      rownames_to_column(var="gene") %>% 
+      as_tibble() %>%
+      na.omit() %>%
+      filter(padj < alpha) %>%
+      nrow()
+    
+    n_degs_tib = n_degs_tib %>% add_row(n_young = young_samples, n_old = old_samples, n_degs = n_degs)
+  }
+  
+  if (young_samples == length(sample_metadata_mb_ip_young_KW2$sample_name) & 
+      old_samples == length(sample_metadata_mb_ip_old_KW2$sample_name)) {
+    young_samples = young_samples + 1
+    old_samples = old_samples + 1
+  }
+  if (young_samples < length(sample_metadata_mb_ip_young_KW2$sample_name)) {
+    young_samples = young_samples + 1
+  }
+  if (old_samples < length(sample_metadata_mb_ip_old_KW2$sample_name)) {
+    old_samples = old_samples + 1
+  }
+
+}
+
+n_degs_KW2 = n_degs_tib
+
+n_degs_KW2 %>% mutate(n = n_young + n_old) %>% group_by(n) %>% summarise(mean = mean(n_degs)) %>% ggplot(aes(n, mean)) + geom_point()
+
+plot(metadata(res_KW2_18mMB_ip_vs_3mMB_ip)$filterNumRej, 
+     type="b", ylab="number of rejections",
+     xlab="quantiles of filter")
+lines(metadata(res_KW2_18mMB_ip_vs_3mMB_ip)$lo.fit, col="red")
+abline(v=metadata(res_KW2_18mMB_ip_vs_3mMB_ip)$filterTheta)
+```
+
+```{r}
+
+design = ~ age
+reference_column <- 'age'
+reference_level <- 'young'
+
+n_degs_tib = tibble('n_young' = numeric(), 'n_old' = numeric(), 'n_degs' = numeric())
+
+young_samples = 3
+old_samples = 3
+
+while (young_samples <= length(sample_metadata_mb_ip_young_PK1$sample_name) & 
+    old_samples <= length(sample_metadata_mb_ip_old_PK1$sample_name)) {
+  for (i in 1:10) {
+    young_subset = sample_n(sample_metadata_mb_ip_young_PK1, young_samples)
+    old_subset = sample_n(sample_metadata_mb_ip_old_PK1, old_samples)
+    
+    sample_metadata_subset = bind_rows(young_subset, old_subset)
+    
+    files = file.path(kallisto_path, sample_metadata_subset$sample_code, "abundance.h5")
+    names(files) = sample_metadata_subset$sample_name
+    txi = tximport(files, type = "kallisto", tx2gene = tx2gene, ignoreTxVersion = T)
+    dds = DESeqDataSetFromTximport(txi, colData = sample_metadata_subset, design = design)
+    dds[[paste(reference_column)]] = relevel(dds[[paste(reference_column)]], ref = reference_level)
+    keep_feature = rowMeans(counts(dds)) >= min_counts
+    dds_removed = dds[!keep_feature, ]
+    dds = dds[keep_feature, ]
+    dds = DESeq(dds, minReplicatesForReplace = replicate_replace)
+    contrast_name = tail(resultsNames(dds), n=1)
+    contrast_split = strsplit(contrast_name, '_')
+    contrast = c(contrast_split[[1]][1], contrast_split[[1]][2], contrast_split[[1]][4])
+    res = results(dds, alpha = alpha, lfcThreshold = res_lfc, contrast = contrast, independentFiltering = T)
+    
+    n_degs <- res %>%
+      data.frame() %>%
+      rownames_to_column(var="gene") %>% 
+      as_tibble() %>%
+      na.omit() %>%
+      filter(padj < alpha) %>%
+      nrow()
+    
+    n_degs_tib = n_degs_tib %>% add_row(n_young = young_samples, n_old = old_samples, n_degs = n_degs)
+  }
+  
+  if (young_samples == length(sample_metadata_mb_ip_young_PK1$sample_name) & 
+      old_samples == length(sample_metadata_mb_ip_old_PK1$sample_name)) {
+    young_samples = young_samples + 1
+    old_samples = old_samples + 1
+  }
+  if (young_samples < length(sample_metadata_mb_ip_young_PK1$sample_name)) {
+    young_samples = young_samples + 1
+  }
+  if (old_samples < length(sample_metadata_mb_ip_old_PK1$sample_name)) {
+    old_samples = old_samples + 1
+  }
+}
+
+n_degs_PK1 = n_degs_tib
+
+n_degs_PK1 %>% mutate(n = n_young + n_old) %>% group_by(n) %>% summarise(mean = mean(n_degs)) %>% ggplot(aes(n, mean)) + geom_point()
+
+plot(metadata(res_PK1_18mMB_ip_vs_3mMB_ip)$filterNumRej, 
+     type="b", ylab="number of rejections",
+     xlab="quantiles of filter")
+lines(metadata(res_PK1_18mMB_ip_vs_3mMB_ip)$lo.fit, col="red")
+abline(v=metadata(res_PK1_18mMB_ip_vs_3mMB_ip)$filterTheta)
+```
+
+```{r}
+PK1_signif = res_output_PK1_18mMB_ip_vs_3mMB_ip %>% filter(padj < 0.01)
+
+KW2_signif = res_output_KW2_18mMB_ip_vs_3mMB_ip %>% filter(padj < 0.01)
+
+
+ageing_degs_combined = PK1_signif %>% 
+  left_join(KW2_signif, by = 'gene', suffix = c('_PK1', '_KW2')) %>%
+  drop_na() %>%
+  mutate(sign = ifelse(sign(log2FoldChange_PK1) == sign(log2FoldChange_KW2), 'equal', 'opposite' ))
+
+sum(ageing_degs_combined$sign == 'equal') / length(ageing_degs_combined$sign)
+
+ageing_degs_combined %>%
+  ggplot(aes(x=log2FoldChange_PK1, y=log2FoldChange_KW2, colour=sign)) +
+  geom_point() +
+  theme_cowplot() +
+  scale_color_lancet() + 
+  annotate("text", x = 3.5, y = 0.25, size = 4, label = "Equal Sign: 91.8%\nCorrelation: 0.92\nAdjusted p-value < 0.001")
+
+ggsave(path = output_dir, filename = "age_mb_PK1_KW2_outliers_scatter.png", width = width, height = height, dpi = dpi, units = units) 
+
+ageing_degs_combined_equal_sign = ageing_degs_combined %>%
+  filter(sign == 'equal')
+
+## Assuming independence
+## combine with Fisher's Method
+ 
+pmat = data.frame(P1=ageing_degs_combined_equal_sign$padj_PK1,P2=ageing_degs_combined_equal_sign$padj_KW2)
+
+fisher_res = apply(pmat,1,sumlog)
+ 
+p_vec = c()
+for(i in fisher_res)
+{
+  p_vec = c(p_vec,i$p)
+}
+
+pmat$FisherP = p_vec
+
+ageing_degs_combined_equal_sign$padj_comb = pmat$FisherP
+
+ageing_degs_combined_equal_sign %>%
+  ggplot(aes(x=log2FoldChange_PK1, y=log2FoldChange_KW2, color=padj_comb)) +
+  geom_point(alpha = 0.75) +
+  theme_cowplot() +
+  scale_color_viridis() + 
+  scale_fill_viridis()
+
+ggsave(path = output_dir, filename = "age_mb_PK1_KW2_FisherPadj_scatter.png", width = width, height = height, dpi = dpi, units = units) 
+
+cor(ageing_degs_combined_equal_sign$log2FoldChange_PK1, ageing_degs_combined_equal_sign$log2FoldChange_KW2)
+cor(ageing_degs_combined$log2FoldChange_PK1, ageing_degs_combined$log2FoldChange_KW2)
+
+ageing_degs_combined_equal_sign %>% select(-starts_with('IP')) %>%
+  write_delim(file.path(output_dir, "age_kw_pk_comb.csv"), delim = ',')
+
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
