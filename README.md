@@ -2,6 +2,13 @@ DPAG fly TRAP
 Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
+
+## GATK
+```
+remove alternate contigs:
+grep -v "random" /home/peter/may_2020/mm10_protCod_canonical.bed | grep -v "JH584" > /home/peter/may_2020/mm10_protCod_canonical_noAlt.bed
+```
+
 ## Leafcutter
 ```
 for i in /zfs/analysis/pk_trap/bam_april2020/*sorted.bam ; do ./scripts/bam2junc.sh $i ${i%.bam}.junc ; done
