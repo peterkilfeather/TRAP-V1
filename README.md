@@ -3,10 +3,42 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+## 15th May 2020
+Ongoing routes:
+  ### Deconvolution of axonal TRAP data:
+  - After reading a [benchmarking comparison](https://www.biorxiv.org/content/10.1101/2020.01.10.897116v1.full) I have prioritised testing CIBERSORTx to deconvolute the axonal IP data. I have also started testing 'nnls', which I believe works in a similar method. Another tool to try is FARDEEP. I started by using RNA Seq data from Chen, 2014 (GSE52564), and found that axonal trap samples resemble 70% neurons, and the remainder astrocytes and newly-formed oligodendrocytes. I need to test what proportion NNLS and a tool like FARDEEP estimates with this Chen dataset. The Chen dataset was run through the same kallisto settings as the TRAP data. I then tested a single cell dataset from [Gokce, 2017](https://www.ncbi.nlm.nih.gov/pubmed/27425622) and it predicted 90-95% neuronal, remainder astrocyte/oligo.
+  - I now want to use TRAP datasets of different neuronal types + astrocytes and oligodendrocytes to further tease apart the neuronal category. I am using the following datasets:
+    - Astrocytes: [Clarke, 2018](https://www.pnas.org/content/115/8/E1896)
+    - Astrocytes: [Sakers, 2017](https://www.pnas.org/content/114/19/E3830)
+    - MSNs: [Kronman, 2018](https://www.biorxiv.org/content/10.1101/444315v1)
+    - DAns: [Brichta, 2015](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4763340/)
+    - Oligos: [Voskuhl, 2019](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE118451)
+  - I plan on importing them all in as one DESeq2 object, export the counts and feed them into CIBERSORTx. **Should I import the axonal data into the same DESeq object?**
+### DEG of ageing in midbrain
+  - I need to test ageing datasets for differential expression and find the overlap of their genes with our 171.
+    - First dataset to test: Astrocytes: [Clarke, 2018](https://www.pnas.org/content/115/8/E1896)
+
+### Somatic variant calling in midbrain
+
+  - I am following the off-label tutorial for calling somatic mutation differences between to samples from [GATK](https://gatkforums.broadinstitute.org/gatk/discussion/11315/off-label-workflow-to-simply-call-differences-in-two-samples).
+  - So far, I have called each KW TRAP sample in tumor-only mode with Mutect2, created a panel of normals from these samples, created modified mutect2 vcf files by moving the allele frequency/fraction and have run haplotypeCaller (with sentieon) on all these samples to identify germline variants to exclude from the analysis.
+  - I need to filter the output of haplotypeCaller: Can I use VQSR for this or do I need to do just hard filtering? I want to export the raw haplotypeCaller calls into R to plot the QC distributions like in [this post](https://gatk.broadinstitute.org/hc/en-us/articles/360035890471-Hard-filtering-germline-short-variants).
+  - I need to decide on what I am asking and how to structure the comparisons:
+    - Does midbrain tissue acquire more somatic mutations with age
+    - Do dopaminergic neurons have more somatic mutations, regardless of age
+    - Do dopaminergic neurons aquire more somatic mutations with age
+    - Do dopaminergic neurons aquire more somatic mutations with OVX, regardless of age
+    - Do dopaminergic neurons acquire more somatic mutations with OVX, with age
+- Splicing in midbrain
+
 ## GATK
 ```
 remove alternate contigs:
 grep -v "random" /home/peter/may_2020/mm10_protCod_canonical.bed | grep -v "JH584" > /home/peter/may_2020/mm10_protCod_canonical_noAlt.bed
+
+Get all INFO and FORMAT fields from a VCF:
+zcat 257_273_haplo_gatk_hardfilt.vcf.gz | perl -ne '/^.*INFO.*ID=([a-zA-Z0-9_]+),/ && print "-F $1 \\ "' | uniq
+zcat 257_273_haplo_gatk_hardfilt.vcf.gz | perl -ne '/^.*FORMAT.*ID=([a-zA-Z0-9_]+),/ && print "-GF $1 \\ "' | uniq
 ```
 
 ## Leafcutter
