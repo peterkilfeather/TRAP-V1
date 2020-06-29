@@ -3,6 +3,8 @@ Kevin Talbot 'Shatra'
 Jakob Sca
   - See minion repo
 
+# This repo is now deprecated and is replaced by version 2 of the analysis, found [here](https://github.com/peterkilfeather/trap).
+
 ## 15th May 2020
 Ongoing routes:
   ### Deconvolution of axonal TRAP data:
